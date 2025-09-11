@@ -2,7 +2,7 @@ import { Server } from "socket.io"
 
 const allowedOrigins = [
   "http://localhost:3000", // local dev
-  "https://meshmeet.onrender.com/", // production frontend
+  "https://meetothers.onrender.com", // production frontend
 ];
 
 const socketHandler = (req,res)=>{
@@ -82,7 +82,8 @@ const socketHandler = (req,res)=>{
             socket.on('user-hand-raise',(userId,roomId,isHandRaised)=>{
                 console.log(`User ${userId} ${isHandRaised ? 'raised' : 'lowered'} hand in room ${roomId}`);
                 socket.join(roomId)
-                socket.broadcast.to(roomId).emit('user-hand-raise', {
+                // Broadcast to all in the room (including sender for UI update)
+                io.to(roomId).emit('user-hand-raise', {
                     userId,
                     isHandRaised,
                     timestamp: new Date().toISOString()
@@ -90,8 +91,18 @@ const socketHandler = (req,res)=>{
             })
             
             socket.on('chat-message',(roomId,message)=>{
-                socket.broadcast.to(roomId).emit('chat-message', message)
+                // Broadcast to all in the room (including sender for group chat)
+                io.to(roomId).emit('chat-message', message)
             })
+
+            // Handle user leaving the room
+            socket.on('leave-room', (roomId, userId) => {
+                socket.leave(roomId);
+                socket.broadcast.to(roomId).emit('user-disconnected', {
+                    userId
+                });
+                console.log(`User ${userId} left room ${roomId}`);
+            });
             
             socket.on('user-speaking',(userId,roomId,isSpeaking)=>{
                 socket.broadcast.to(roomId).emit('user-speaking', {
