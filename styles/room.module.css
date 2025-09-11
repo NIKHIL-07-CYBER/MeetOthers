@@ -1,0 +1,99 @@
+.roomHeader {
+  @apply absolute top-4 left-4 right-4 z-20;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.roomInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.roomTitle {
+  @apply text-xl font-bold text-gray-800 m-0;
+}
+
+.roomDetails {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.roomId {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  @apply text-sm text-gray-600 cursor-pointer hover:text-blue-600 transition-colors;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.participantCount {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  @apply text-sm text-gray-600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.activePlayerContainer {
+  @apply absolute left-0 right-0 mx-auto flex items-center justify-center;
+  top: 100px;
+  bottom: 120px; /* leave space for bottom bar */
+  width: 85%;
+  height: calc(100vh - 220px);
+
+  @apply rounded-2xl shadow-xl overflow-hidden bg-black;
+}
+
+.inActivePlayerContainer {
+  @apply absolute flex flex-col gap-4 overflow-y-auto p-2;
+  top: 100px;
+  right: 20px;
+  width: 280px;
+  height: calc(100vh - 140px);
+
+  @apply rounded-2xl shadow-lg backdrop-blur bg-black/40;
+}
+
+/* Smooth scrollbar for inactive players */
+.inActivePlayerContainer::-webkit-scrollbar {
+  width: 8px;
+}
+.inActivePlayerContainer::-webkit-scrollbar-thumb {
+  @apply bg-gray-600 rounded-full;
+}
+.inActivePlayerContainer::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.videoFrame {
+  @apply relative rounded-xl overflow-hidden shadow-lg bg-black;
+}
+
+/* User initials badge */
+.userBadge {
+  @apply absolute top-2 left-2 w-10 h-10 flex items-center justify-center 
+         text-white font-semibold rounded-full shadow-md text-sm;
+  background: linear-gradient(135deg, #6366f1, #ec4899);
+}
+
+/* User name label */
+.userName {
+  @apply absolute bottom-2 left-1/2 transform -translate-x-1/2 
+         text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-md;
+}
+
+/* Particle canvas */
+.particleBackground {
+  @apply fixed top-0 left-0 w-full h-full -z-10;
+}
+

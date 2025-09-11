@@ -1,0 +1,227 @@
+import { useEffect, useRef, useState } from "react";
+import cx from "classnames";
+import styles from "@/components/Player/index.module.css";
+import { UserSquare2, Mic, MicOff, Video, VideoOff, Zap } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const Player = ({ 
+  stream, 
+  muted, 
+  playing, 
+  isLocal = false, 
+  userId,
+  userName,
+  connectionQuality = "good",
+  isSpeaking = false,
+  isLoading = false,
+  isHandRaised = false,
+  isActive = false
+}) => {
+  const videoRef = useRef(null);
+  const [hasVideoError, setHasVideoError] = useState(false);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+
+  useEffect(() => {
+    if (videoRef.current && stream && playing) {
+      videoRef.current.srcObject = stream;
+      setHasVideoError(false);
+      setIsVideoLoaded(false);
+    } else if (videoRef.current && !playing) {
+      // Clear video when not playing to prevent stale frames
+      videoRef.current.srcObject = null;
+      setIsVideoLoaded(false);
+    }
+  }, [stream, playing]);
+
+  const handleVideoLoad = () => {
+    setIsVideoLoaded(true);
+    setHasVideoError(false);
+  };
+
+  const handleVideoError = () => {
+    setHasVideoError(true);
+    setIsVideoLoaded(false);
+  };
+
+  const getInitials = (name) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getConnectionColor = () => {
+    switch (connectionQuality) {
+      case 'excellent': return 'bg-green-500';
+      case 'good': return 'bg-green-400';
+      case 'fair': return 'bg-yellow-400';
+      case 'poor': return 'bg-red-400';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  return (
+    <motion.div
+      className={cx(styles.playerContainer, {
+        [styles.notActive]: !isActive,
+        [styles.active]: isActive,
+      })}
+      layout
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
+      {/* Video or Placeholder */}
+      <div className="relative w-full h-full rounded-lg overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+        <AnimatePresence mode="wait">
+          {playing && !hasVideoError ? (
+            <motion.video
+              key="video"
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted={muted}
+              controls={false}
+              onLoadedData={handleVideoLoad}
+              onError={handleVideoError}
+              className={cx(
+                "w-full h-full object-cover transition-opacity duration-300",
+                isVideoLoaded ? "opacity-100" : "opacity-0"
+              )}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isVideoLoaded ? 1 : 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            />
+          ) : (
+            <motion.div
+              key="placeholder"
+              className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-900/20 to-purple-900/20"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* User Avatar */}
+              <motion.div
+                className={cx(
+                  "rounded-full flex items-center justify-center text-white font-semibold mb-2",
+                  "bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg",
+                  isActive ? "w-24 h-24 text-2xl" : "w-16 h-16 text-lg"
+                )}
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.2 }}
+              >
+                {getInitials(userName)}
+              </motion.div>
+              
+              {/* User Name */}
+              <motion.p
+                className={cx(
+                  "text-white font-medium text-center px-2",
+                  isActive ? "text-lg" : "text-sm"
+                )}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                {userName}
+              </motion.p>
+
+              {/* Video Off Icon */}
+              <motion.div
+                className="mt-2 p-2 rounded-full bg-red-500/20"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <VideoOff 
+                  size={isActive ? 24 : 16} 
+                  className="text-red-400" 
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Status Indicators Overlay */}
+        <div className="absolute bottom-2 left-2 flex items-center space-x-2">
+          {/* Audio Status */}
+          <motion.div
+            className={cx(
+              "p-1.5 rounded-full backdrop-blur-sm",
+              muted ? "bg-red-500/80" : "bg-green-500/80"
+            )}
+            whileHover={{ scale: 1.1 }}
+            transition={{ duration: 0.2 }}
+          >
+            {muted ? (
+              <MicOff size={12} className="text-white" />
+            ) : (
+              <Mic size={12} className="text-white" />
+            )}
+          </motion.div>
+
+          {/* Connection Quality */}
+          <motion.div
+            className={cx(
+              "w-2 h-2 rounded-full",
+              getConnectionColor()
+            )}
+            animate={isSpeaking ? { scale: [1, 1.3, 1] } : {}}
+            transition={{ duration: 0.5, repeat: isSpeaking ? Infinity : 0 }}
+          />
+        </div>
+
+        {/* Hand Raise Indicator */}
+        <AnimatePresence>
+          {isHandRaised && (
+            <motion.div
+              className="absolute top-2 right-2 p-2 rounded-full bg-yellow-500/90 backdrop-blur-sm"
+              initial={{ opacity: 0, scale: 0, rotate: -180 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0, rotate: 180 }}
+              transition={{ duration: 0.3, type: "spring" }}
+              whileHover={{ scale: 1.1 }}
+            >
+              <Zap size={16} className="text-white" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Speaking Indicator */}
+        <AnimatePresence>
+          {isSpeaking && (
+            <motion.div
+              className="absolute inset-0 border-2 border-green-400 rounded-lg"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Loading State */}
+        <AnimatePresence>
+          {playing && !isVideoLoaded && !hasVideoError && (
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center bg-slate-800/50 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+};
+
+export default Player;

@@ -1,26 +1,110 @@
-import { useSocket } from "../context/socket"
-import { useEffect } from "react"
+import { v4 as uuidv4 } from "uuid";
+import { useRouter } from "next/router";
+import styles from "@/styles/home.module.css";
+import { useState } from "react";
+import { Video, Users, Plus, LogIn } from "lucide-react";
+import { motion } from "framer-motion";
+import ParticleBackground from "@/components/ParticleBackground";
 
 export default function Home() {
-  const socket = useSocket()
+  const Router = useRouter();
+  const [roomId, setRoomId] = useState("");
 
-  useEffect(()=>{
-    socket?.on("connect",()=>{
-      console.log("server connected") // Log '1' on connect
-      console.log(socket.id)
-    });
-    // Clean up listener
-    return () => {
-      socket?.off("connect")
+  const createAndJoin = () => {
+    const roomId = uuidv4();
+    Router.push(`/${roomId}`);
+  };
+
+  const joinRoom = () => {
+    if (roomId.trim()) {
+      Router.push(`/${roomId}`);
+    } else {
+      alert("Please enter a valid room ID");
     }
-  },[socket])
+  };
 
   return (
-    <main>
-      <h1>Welcome to the  App</h1>
-      {/* Show socket id if connected */}
-      {socket?.connected && <p>Socket ID: {socket.id}</p>}
-      {!socket?.connected && <p>Socket not connected</p>}
-    </main>
-  )
+    <>
+      <ParticleBackground />
+      <div className={styles.container}>
+        <motion.div 
+          className={styles.homeContainer}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <motion.div 
+            className={styles.header}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <Video className={styles.logo} size={48} />
+            <h1 className={styles.title}>MeetOthers</h1>
+            <p className={styles.subtitle}>Connect with anyone, anywhere</p>
+          </motion.div>
+
+          <motion.div 
+            className={styles.actionContainer}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+          >
+            <div className={styles.enterRoom}>
+              <div className={styles.inputWrapper}>
+                <input
+                  className={styles.roomInput}
+                  placeholder="Enter room ID"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e?.target?.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
+                />
+                <motion.button 
+                  className={styles.joinButton}
+                  onClick={joinRoom}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <LogIn size={20} />
+                  Join Room
+                </motion.button>
+              </div>
+            </div>
+
+            <div className={styles.separator}>
+              <span className={styles.separatorLine}></span>
+              <span className={styles.separatorText}>OR</span>
+              <span className={styles.separatorLine}></span>
+            </div>
+
+            <motion.button 
+              className={styles.createButton}
+              onClick={createAndJoin}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Plus size={20} />
+              Create New Room
+            </motion.button>
+          </motion.div>
+
+          <motion.div 
+            className={styles.features}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.6 }}
+          >
+            <div className={styles.feature}>
+              <Video size={24} />
+              <span>HD Video Calls</span>
+            </div>
+            <div className={styles.feature}>
+              <Users size={24} />
+              <span>Multiple Participants</span>
+            </div>
+          </motion.div>
+        </motion.div>
+      </div>
+    </>
+  );
 }

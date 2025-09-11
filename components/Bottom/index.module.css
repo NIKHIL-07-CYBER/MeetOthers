@@ -1,0 +1,48 @@
+.bottomMenu {
+  @apply absolute flex justify-center gap-4 items-center bottom-6 left-0 right-0 mx-auto p-4 rounded-2xl shadow-xl backdrop-blur-md;
+  width: fit-content;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.icon {
+  @apply p-3 rounded-full text-white cursor-pointer transition-all duration-200;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.icon:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* States */
+.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.success:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.neutral {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+.neutral:hover {
+  background: linear-gradient(135deg, #4b5563, #374151);
+}
+
+.hangup {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.hangup:hover {
+  background: linear-gradient(135deg, #991b1b, #7f1d1d);
+}

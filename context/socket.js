@@ -1,37 +1,38 @@
-import { useEffect,useState,createContext,useContext } from "react"
-import { io }  from "socket.io-client"
+import { useEffect, useState, createContext, useContext } from "react";
+import { io } from "socket.io-client";
 
-const socketContext = createContext(null)
+const socketContext = createContext(null);
 
-export const useSocket = () =>{
-    const socket = useContext(socketContext)
-    return socket
-}
+export const useSocket = () => useContext(socketContext);
 
-export const SocketProvider = (props)=>{
-    const {children} = props
-    const [socket,setSocket] = useState(null)
+export const SocketProvider = ({ children }) => {
+  const [socket, setSocket] = useState(null);
 
-    useEffect(()=>{
-        // Connect to the default path
-        const connection = io()
-        setSocket(connection)
+  useEffect(() => {
+    // Dynamically set backend URL
+    const isProd = typeof window !== "undefined" && window.location.hostname !== "localhost";
+    const backendUrl = isProd
+      ? "https://meshmeet.onrender.com/" // Render backend URL
+      : "http://localhost:3000"; // Local Next.js dev server
 
-        connection.on("connect_error",async (err)=>{
-            console.log("error on connecting error",err)
-            // Optionally trigger the API route to ensure server is started
-            await fetch('/api/socket')
-        })
+    const connection = io(backendUrl, {
+      path: "/api/socket", // Next.js API route
+      transports: ["websocket"], // Force WebSocket
+      withCredentials: true,
+    });
 
-        return () => {
-            connection.off("connect_error")
-            connection.disconnect()
-        }
-    },[])
+    setSocket(connection);
 
-    return (
-        <socketContext.Provider value={socket}>
-            {children}
-        </socketContext.Provider>
-    )
-}
+    connection.on("connect_error", async (err) => {
+      console.log("error on connecting error", err);
+      await fetch("/api/socket");
+    });
+
+    return () => {
+      connection.off("connect_error");
+      connection.disconnect();
+    };
+  }, []);
+
+  return <socketContext.Provider value={socket}>{children}</socketContext.Provider>;
+};
