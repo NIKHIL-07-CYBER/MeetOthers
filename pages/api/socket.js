@@ -13,6 +13,7 @@ const socketHandler = (req,res)=>{
                 methods: ["GET", "POST"]
             },
             transports: ["websocket", "polling"],
+            path: "/api/socket" // Explicitly set socket.io path for Next.js API route
         })
         res.socket.server.io = io
     
