@@ -5,12 +5,10 @@ services:
     region: oregon
     plan: free
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: npx next start -H 0.0.0.0 -p $PORT
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
       # TURN server credentials — get free credentials from xirsys.com
       # Uncomment and fill these in your Render dashboard (Environment > Secret Files)
       # - key: NEXT_PUBLIC_TURN_URL

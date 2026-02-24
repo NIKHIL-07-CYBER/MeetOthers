@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import cx from "classnames";
 import styles from "@/components/Player/index.module.css";
-import { UserSquare2, Mic, MicOff, Video, VideoOff, Zap } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const Player = ({ 
-  stream, 
-  muted, 
-  playing, 
-  isLocal = false, 
+const Player = ({
+  stream,
+  muted,
+  playing,
+  isLocal = false,
   userId,
   userName,
   connectionQuality = "good",
@@ -21,17 +21,33 @@ const Player = ({
   const [hasVideoError, setHasVideoError] = useState(false);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
+  // ✅ FIX BUG-1: Always attach the stream to the video element when stream is present.
+  // Previously, srcObject was only set when `playing` was true — this caused a race
+  // where the stream arrived after the first render (playing=true → stream=null → srcObject never set).
+  // Now we ALWAYS set srcObject = stream so the video element is always live.
+  // The `playing` prop only controls whether we SHOW the video or the avatar placeholder.
   useEffect(() => {
-    if (videoRef.current && stream && playing) {
-      videoRef.current.srcObject = stream;
-      setHasVideoError(false);
-      setIsVideoLoaded(false);
-    } else if (videoRef.current && !playing) {
-      // Clear video when not playing to prevent stale frames
-      videoRef.current.srcObject = null;
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (stream) {
+      // Always attach the stream so the video element is primed and ready.
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+        setHasVideoError(false);
+        setIsVideoLoaded(false);
+      }
+      // Attempt to play; autoplay policy may block it on some browsers.
+      video.play().catch((e) => {
+        console.warn("[Player] play() rejected:", e.name);
+        // Still mark as loaded so opacity-0 doesn't permanently hide the frame.
+        setIsVideoLoaded(true);
+      });
+    } else {
+      video.srcObject = null;
       setIsVideoLoaded(false);
     }
-  }, [stream, playing]);
+  }, [stream]);
 
   const handleVideoLoad = () => {
     setIsVideoLoaded(true);
@@ -62,6 +78,10 @@ const Player = ({
     }
   };
 
+  // Whether the live video frame should be visually shown.
+  // We hide it (not remove it) when !playing so the stream stays attached.
+  const showVideo = playing && stream && !hasVideoError;
+
   return (
     <motion.div
       className={cx(styles.playerContainer, {
@@ -73,30 +93,31 @@ const Player = ({
     >
       {/* Video or Placeholder */}
       <div className="relative w-full h-full rounded-lg overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
-        <AnimatePresence mode="wait">
-          {playing && !hasVideoError ? (
-            <motion.video
-              key="video"
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted={muted}
-              controls={false}
-              onLoadedData={handleVideoLoad}
-              onError={handleVideoError}
-              className={cx(
-                "w-full h-full object-cover transition-opacity duration-300",
-                isVideoLoaded ? "opacity-100" : "opacity-0"
-              )}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: isVideoLoaded ? 1 : 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            />
-          ) : (
+        {/* ✅ FIX BUG-1: video element is ALWAYS in the DOM when stream exists.
+            We use CSS visibility/opacity to hide it when video is off.
+            This prevents the srcObject never-set race condition. */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={muted}
+          controls={false}
+          onCanPlay={handleVideoLoad}
+          onLoadedMetadata={handleVideoLoad}
+          onError={handleVideoError}
+          style={{ display: showVideo ? 'block' : 'none' }}
+          className={cx(
+            "w-full h-full object-cover transition-opacity duration-300",
+            isVideoLoaded ? "opacity-100" : "opacity-0"
+          )}
+        />
+
+        {/* Avatar placeholder — shown when video is off or stream not ready */}
+        <AnimatePresence>
+          {!showVideo && (
             <motion.div
               key="placeholder"
-              className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-900/20 to-purple-900/20"
+              className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-900/20 to-purple-900/20"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -112,9 +133,9 @@ const Player = ({
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.2 }}
               >
-                {getInitials(userName)}
+                {getInitials(userName || 'U')}
               </motion.div>
-              
+
               {/* User Name */}
               <motion.p
                 className={cx(
@@ -129,17 +150,19 @@ const Player = ({
               </motion.p>
 
               {/* Video Off Icon */}
-              <motion.div
-                className="mt-2 p-2 rounded-full bg-red-500/20"
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <VideoOff 
-                  size={isActive ? 24 : 16} 
-                  className="text-red-400" 
-                />
-              </motion.div>
+              {!playing && (
+                <motion.div
+                  className="mt-2 p-2 rounded-full bg-red-500/20"
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <VideoOff
+                    size={isActive ? 24 : 16}
+                    className="text-red-400"
+                  />
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -202,9 +225,9 @@ const Player = ({
           )}
         </AnimatePresence>
 
-        {/* Loading State */}
+        {/* Loading State — only shown while playing but video not yet decoded */}
         <AnimatePresence>
-          {playing && !isVideoLoaded && !hasVideoError && (
+          {showVideo && !isVideoLoaded && !hasVideoError && (
             <motion.div
               className="absolute inset-0 flex items-center justify-center bg-slate-800/50 backdrop-blur-sm"
               initial={{ opacity: 0 }}

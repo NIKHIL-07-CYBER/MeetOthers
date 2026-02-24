@@ -54,8 +54,12 @@ const Room = () => {
   const [chatMessages, setChatMessages] = useState([]);
 
   // ✅ FIX CV-1: peerConnections MUST be declared before any useEffect that references it.
-  // 'const' is not hoisted — placing it below the useEffects caused ReferenceError.
   const peerConnections = useRef({});
+
+  // ✅ FIX BUG-2: streamRef always holds the latest stream so the peer.on("call")
+  // handler — which is registered once on peer open — can answer with the current
+  // stream even if it was null at the time the handler was first created.
+  const streamRef = useRef(null);
 
   // Meeting timer
   useEffect(() => {
@@ -175,9 +179,12 @@ const Room = () => {
   useEffect(() => {
     if (!peer) return;
 
-    peer.on("call", (call) => {
+    // ✅ FIX BUG-2: Use streamRef.current (not the closed-over `stream` value) so
+    // this handler — registered once when `peer` is ready — always answers with the
+    // latest stream even if getUserMedia resolved after peer.on("call") was registered.
+    const handleCall = (call) => {
       const { peer: callerId } = call;
-      call.answer(stream);
+      call.answer(streamRef.current);  // always latest, never stale null
       peerConnections.current[callerId] = call;
 
       call.on("stream", (incomingStream) => {
@@ -196,8 +203,13 @@ const Room = () => {
       call.on("close", () => {
         delete peerConnections.current[callerId];
       });
-    });
-  }, [peer, stream, setPlayers]);
+    };
+
+    peer.on("call", handleCall);
+    // ✅ FIX BUG-2: `stream` removed from deps — streamRef.current provides live value.
+    // Only re-register when `peer` itself changes (e.g. reconnect).
+    return () => peer.off("call", handleCall);
+  }, [peer, setPlayers]);
 
   // Room creation/join logic
   // ✅ FIX CV-2: Triggered by myId (PeerJS open event), NOT peer object.
@@ -241,6 +253,11 @@ const Room = () => {
     };
     // ✅ FIX CV-2: `peer` removed from deps — myId only becomes truthy after PeerJS open
   }, [socket, myId, roomId, setPlayers]);
+
+  // Keep streamRef in sync with stream state so peer.on("call") always has the latest.
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
 
   // Set my own local stream
   useEffect(() => {
@@ -305,7 +322,12 @@ const Room = () => {
 
   const handleToggleAudio = () => {
     mediaToggleAudio();
-    socket?.emit("user-toggled-audio", myId, roomId, !isAudioEnabled);
+    // ✅ FIX BUG-3: Read actual track state AFTER toggling, not the stale closure value.
+    // `mediaToggleAudio` synchronously flips audioTrack.enabled on currentStream.current.
+    // We read it back immediately so the emitted value always matches reality.
+    const audioTrack = streamRef.current?.getAudioTracks()[0];
+    const nowEnabled = audioTrack ? audioTrack.enabled : false;
+    socket?.emit("user-toggled-audio", myId, roomId, nowEnabled);
   };
 
   // Chat logic
@@ -434,10 +456,12 @@ const Room = () => {
               );
             })
           ) : (
-            // Show a few skeletons while waiting for participants
-            Array.from({ length: 3 }).map((_, i) => (
-              <VideoSkeleton key={`skel-${i}`} isActive={false} />
-            ))
+            // ✅ FIX BUG-4: No skeleton fallback here — nonHighlighted being empty just
+            // means you're alone. Showing skeletons would mask real connected users
+            // who have url:null while their stream is still loading.
+            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
+              Waiting for others to join...
+            </div>
           )}
         </m.div>
       </div>
@@ -447,7 +471,7 @@ const Room = () => {
           playing={isVideoEnabled}
           toggleAudio={handleToggleAudio}
           toggleVideo={handleToggleVideo}
-          leaveCall={handleEndCall}
+          onEndCall={handleEndCall}
           toggleScreenShare={handleToggleScreenShare}
           isScreenSharing={isScreenSharing}
           isHandRaised={isHandRaised}

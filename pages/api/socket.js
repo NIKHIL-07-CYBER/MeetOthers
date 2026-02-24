@@ -67,7 +67,10 @@ const socketHandler = (req, res) => {
                     socket.userId = userId;
                     socket.userInfo = userInfo;
                     socket.emit('roomJoined', { roomId });
+                    // Notify existing peers about the new user joining (for UI placeholder)
                     socket.broadcast.to(roomId).emit('newUserJoined', { userId, userInfo });
+                    // CRITICAL: Also emit user-connected so existing peers initiate PeerJS calls
+                    socket.broadcast.to(roomId).emit('user-connected', { userId });
                     console.log(`User ${userId} joined room ${roomId}`);
                 }
             });
