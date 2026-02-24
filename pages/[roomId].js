@@ -322,25 +322,42 @@ const Room = () => {
 
   const handleToggleAudio = () => {
     mediaToggleAudio();
-    // Synchronous read from the track we just flipped
-    const audioTrack = streamRef.current?.getAudioTracks()[0];
-    const isMicOn = audioTrack ? audioTrack.enabled : false;
+  };
 
-    console.log(`[Audio] Mic toggled: ${isMicOn ? "ON" : "OFF"}`);
+  // ✅ FIX: Consolidate Mic Toggle Sync & Emission
+  // instead of manual updates in the handler, we react to the hook's state
+  useEffect(() => {
+    if (!myId || !roomId) return;
 
-    // Immediately sync local player UI (mic icon & participant list)
+    // Sync local players state (for icons/list)
     setPlayers((prev) => ({
       ...prev,
       [myId]: {
         ...(prev[myId] || {}),
-        muted: !isMicOn,
+        muted: !isAudioEnabled,
         url: streamRef.current,
       },
     }));
 
-    // Broadcast change to others
-    socket?.emit("user-toggled-audio", myId, roomId, isMicOn);
-  };
+    // Emit to others only if socket is alive
+    socket?.emit("user-toggled-audio", myId, roomId, isAudioEnabled);
+
+    console.log(`[Audio Event] Mic is now: ${isAudioEnabled ? "ON" : "OFF"}`);
+  }, [isAudioEnabled, myId, roomId, socket]);
+
+  // Sync video state similarly for consistency
+  useEffect(() => {
+    if (!myId || !roomId) return;
+    setPlayers((prev) => ({
+      ...prev,
+      [myId]: {
+        ...(prev[myId] || {}),
+        playing: isVideoEnabled,
+        url: streamRef.current,
+      },
+    }));
+    socket?.emit("user-toggled-video", myId, roomId, isVideoEnabled);
+  }, [isVideoEnabled, myId, roomId, socket]);
 
   // Chat logic
   const handleSendMessage = (msg) => {

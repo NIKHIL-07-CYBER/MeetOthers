@@ -12,11 +12,18 @@ import {
 
 const Message = ({ message, isOwn }) => {
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!timestamp) return "";
+    try {
+      return new Date(timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return "";
+    }
   };
+
+  const content = message.text || message.content;
 
   return (
     <motion.div
@@ -25,47 +32,23 @@ const Message = ({ message, isOwn }) => {
       className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}
     >
       <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isOwn
-        ? 'bg-blue-500 text-white'
-        : 'bg-white/10 dark:bg-gray-800 text-white'
+        ? 'bg-blue-500 text-white shadow-md'
+        : 'bg-white/20 dark:bg-gray-800/80 text-white shadow-sm'
         }`}>
         {!isOwn && (
-          <div className="text-xs text-gray-300 mb-1 font-medium">
+          <div className="text-[10px] text-blue-200 mb-1 font-bold uppercase tracking-wider">
             {message.sender}
           </div>
         )}
 
-        {message.type === 'text' && (
-          <div className="text-sm">{message.content}</div>
-        )}
-
-        {message.type === 'file' && (
-          <div className="flex items-center space-x-2">
-            <File className="w-4 h-4" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm truncate">{message.fileName}</div>
-              <div className="text-xs opacity-75">{message.fileSize}</div>
-            </div>
-            <button className="p-1 hover:bg-white/10 rounded">
-              <Download className="w-4 h-4" />
-            </button>
+        {content && (
+          <div className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+            {content}
           </div>
         )}
 
-        {message.type === 'image' && (
-          <div>
-            <img
-              src={message.imageUrl}
-              alt="Shared image"
-              className="max-w-full rounded mb-2"
-            />
-            {message.content && (
-              <div className="text-sm">{message.content}</div>
-            )}
-          </div>
-        )}
-
-        <div className="text-xs opacity-75 mt-1">
-          {formatTime(message.timestamp)}
+        <div className={`text-[9px] mt-1 text-right ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
+          {formatTime(message.timestamp || new Date())}
         </div>
       </div>
     </motion.div>

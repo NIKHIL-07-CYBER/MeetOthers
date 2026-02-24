@@ -97,34 +97,34 @@ const useMediaStream = () => {
     }
 
     if (!isVideoEnabled) {
-      // Re-enable: try to activate existing disabled track first
       if (videoTrack) {
         videoTrack.enabled = true;
         setIsVideoEnabled(true);
-        return currentStream.current; // ✅ Consistent return
+        return currentStream.current;
       }
 
-      // Track was stopped — need a fresh getUserMedia
       try {
         const newVideoStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
         });
         const newVideoTrack = newVideoStream.getVideoTracks()[0];
-        const audioTrack = currentStream.current.getAudioTracks()[0];
+
+        // Migrate ALL existing audio tracks
+        const audioTracks = currentStream.current?.getAudioTracks() || [];
 
         const combinedStream = new MediaStream();
-        if (audioTrack) combinedStream.addTrack(audioTrack);
+        audioTracks.forEach(track => combinedStream.addTrack(track));
         if (newVideoTrack) combinedStream.addTrack(newVideoTrack);
 
         currentStream.current = combinedStream;
         setStream(combinedStream);
         setIsVideoEnabled(true);
-        return combinedStream; // ✅ Consistent return
+        return combinedStream;
       } catch (error) {
         console.error("Error re-enabling video:", error);
         setError("Failed to re-enable video");
-        return null; // ✅ Explicit null on error
+        return null;
       }
     }
 
@@ -133,23 +133,27 @@ const useMediaStream = () => {
 
   const toggleAudio = useCallback(() => {
     if (!currentStream.current) return;
-
-    const audioTrack = currentStream.current.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = !audioTrack.enabled;
-      setIsAudioEnabled(audioTrack.enabled);
+    const audioTracks = currentStream.current.getAudioTracks();
+    if (audioTracks.length > 0) {
+      const nextState = !audioTracks[0].enabled;
+      audioTracks.forEach(track => { track.enabled = nextState; });
+      setIsAudioEnabled(nextState);
+      return nextState;
     }
   }, []);
 
   const stopScreenShare = useCallback(async () => {
     try {
-      // Stop screen sharing and return to camera
       if (currentStream.current) {
         currentStream.current.getVideoTracks().forEach(track => track.stop());
       }
       setIsScreenSharing(false);
-      // Restart camera
-      const newStream = await initStream({ video: true, audio: isAudioEnabled });
+
+      const newStream = await initStream({ video: true, audio: true });
+      const audioTracks = newStream?.getAudioTracks() || [];
+      // Restore mic state if tracks exist
+      audioTracks.forEach(track => { track.enabled = isAudioEnabled; });
+
       return newStream;
     } catch (error) {
       console.error("Error stopping screen share:", error);
@@ -166,17 +170,19 @@ const useMediaStream = () => {
         audio: true
       });
 
-      // Keep audio from current stream if available
-      const audioTrack = currentStream.current?.getAudioTracks()[0];
+      // ✅ FIX: Robustly retain CURRENT audio tracks
+      const audioTracks = currentStream.current?.getAudioTracks() || [];
 
-      // Create combined stream with screen video and current audio
       const combinedStream = new MediaStream();
       screenStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
-      if (audioTrack && isAudioEnabled) {
-        combinedStream.addTrack(audioTrack);
+
+      if (audioTracks.length > 0) {
+        audioTracks.forEach(track => combinedStream.addTrack(track));
+      } else {
+        const screenAudio = screenStream.getAudioTracks()[0];
+        if (screenAudio) combinedStream.addTrack(screenAudio);
       }
 
-      // Stop previous video tracks only
       if (currentStream.current) {
         currentStream.current.getVideoTracks().forEach(track => track.stop());
       }
@@ -184,9 +190,8 @@ const useMediaStream = () => {
       currentStream.current = combinedStream;
       setStream(combinedStream);
       setIsScreenSharing(true);
-      setIsVideoEnabled(true); // Screen sharing counts as video enabled
+      setIsVideoEnabled(true);
 
-      // Listen for screen share end (user clicks "Stop sharing" in browser)
       screenStream.getVideoTracks()[0].onended = () => {
         stopScreenShare();
       };
@@ -197,7 +202,7 @@ const useMediaStream = () => {
       setError("Failed to start screen sharing");
       return null;
     }
-  }, [isAudioEnabled, stopScreenShare]);
+  }, [stopScreenShare]);
 
   const cleanup = useCallback(() => {
     if (currentStream.current) {

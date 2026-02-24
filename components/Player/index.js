@@ -170,8 +170,8 @@ const Player = ({
         {/* Status Indicators Overlay */}
         <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
           {/* User Name Overlay — Bottom Left */}
-          <div className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 max-w-[120px]">
-            <p className="text-[10px] text-white font-medium truncate">
+          <div className="px-3 py-1 rounded-md bg-black/70 backdrop-blur-md border border-white/20 shadow-xl pointer-events-auto">
+            <p className="text-[11px] text-white font-bold tracking-wide truncate">
               {userName || (userId ? `User ${userId.slice(0, 4)}` : 'Unknown')}
             </p>
           </div>
