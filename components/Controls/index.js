@@ -1,13 +1,13 @@
 import { useSocket } from "@/context/socket";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Mic, 
-  MicOff, 
-  Video, 
-  VideoOff, 
-  Phone, 
-  PhoneOff, 
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Phone,
+  PhoneOff,
   Monitor,
   MonitorX,
   Zap as Hand,
@@ -24,7 +24,7 @@ const Tooltip = ({ children, text, position = 'top' }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <div 
+    <div
       className="relative"
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
@@ -49,35 +49,35 @@ const Tooltip = ({ children, text, position = 'top' }) => {
   );
 };
 
-const ControlButton = ({ 
-  Icon, 
-  onClick, 
-  isActive = false, 
+const ControlButton = ({
+  Icon,
+  onClick,
+  isActive = false,
   variant = 'default',
   tooltip = '',
   isDisabled = false,
   className = '',
   ariaLabel,
   keyboardShortcut,
-  ...props 
+  ...props
 }) => {
   const getVariantStyles = () => {
     switch (variant) {
       case 'danger':
-        return isActive 
-          ? 'bg-red-500 hover:bg-red-600 text-white' 
+        return isActive
+          ? 'bg-red-500 hover:bg-red-600 text-white'
           : 'bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white';
       case 'success':
-        return isActive 
-          ? 'bg-green-500 hover:bg-green-600 text-white' 
+        return isActive
+          ? 'bg-green-500 hover:bg-green-600 text-white'
           : 'bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white';
       case 'warning':
-        return isActive 
-          ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
+        return isActive
+          ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
           : 'bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white';
       default:
-        return isActive 
-          ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+        return isActive
+          ? 'bg-blue-500 hover:bg-blue-600 text-white'
           : 'bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white';
     }
   };
@@ -118,15 +118,15 @@ const ControlButton = ({
   );
 };
 
-const Controls = ({ 
-  muted, 
-  playing, 
+const Controls = ({
+  muted,
+  playing,
   isScreenSharing,
   isRecording,
   isHandRaised,
   isChatOpen,
   isParticipantsOpen,
-  toggleAudio, 
+  toggleAudio,
   toggleVideo,
   toggleScreenShare,
   toggleRecording,
@@ -142,7 +142,7 @@ const Controls = ({
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      
+
       switch (e.key.toLowerCase()) {
         case 'm':
           e.preventDefault();
@@ -183,7 +183,7 @@ const Controls = ({
 
   return (
     <motion.div
-      className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50"
+      className="z-50"
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, delay: 0.2 }}

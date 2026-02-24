@@ -267,12 +267,12 @@ const Room = () => {
       [myId]: {
         ...(prev[myId] || {}),
         url: stream,
-        muted: true, // mute our own video
+        muted: !isAudioEnabled, // reflects actual mic state
         playing: isVideoEnabled,
         isHandRaised: false,
       },
     }));
-  }, [myId, setPlayers, stream, isVideoEnabled]);
+  }, [myId, setPlayers, stream, isVideoEnabled, isAudioEnabled]);
 
   // (peerConnections ref is declared at the top of the component — see line ~42)
 
@@ -293,7 +293,7 @@ const Room = () => {
         ...(prev[myId] || {}),
         url: newStream || stream,
         playing: nowEnabled,
-        muted: true,
+        muted: !isAudioEnabled,
       },
     }));
 
@@ -322,11 +322,17 @@ const Room = () => {
 
   const handleToggleAudio = () => {
     mediaToggleAudio();
-    // ✅ FIX BUG-3: Read actual track state AFTER toggling, not the stale closure value.
-    // `mediaToggleAudio` synchronously flips audioTrack.enabled on currentStream.current.
-    // We read it back immediately so the emitted value always matches reality.
+    // Read actual track state AFTER toggling (synchronous flip inside mediaToggleAudio)
     const audioTrack = streamRef.current?.getAudioTracks()[0];
     const nowEnabled = audioTrack ? audioTrack.enabled : false;
+    // ✅ FIX: Update local player tile so mic icon and participant list reflect new state
+    setPlayers((prev) => ({
+      ...prev,
+      [myId]: {
+        ...(prev[myId] || {}),
+        muted: !nowEnabled,
+      },
+    }));
     socket?.emit("user-toggled-audio", myId, roomId, nowEnabled);
   };
 
@@ -394,7 +400,7 @@ const Room = () => {
         participantCount={participants.length}
         meetingDuration={meetingDuration}
       />
-      <div className={`pt-16 pb-32 px-4 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'mr-80' : ''}`}>
+      <div className={`pt-16 pb-32 px-4 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'mr-80' : ''}`} id="main-content">
         {/* Big active player */}
         <m.div
           className={styles.activePlayerContainer}
@@ -465,7 +471,10 @@ const Room = () => {
           )}
         </m.div>
       </div>
-      <div className={`fixed bottom-0 left-0 z-50 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'right-80' : 'right-0'}`}>
+      {/* Controls bar — shifts its right boundary so the pill stays centered in the available space */}
+      <div
+        className={`fixed bottom-0 left-0 z-50 flex justify-center items-end pb-6 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'right-80' : 'right-0'}`}
+      >
         <Controls
           muted={!isAudioEnabled}
           playing={isVideoEnabled}
@@ -491,6 +500,7 @@ const Room = () => {
         roomId={roomId}
         messages={chatMessages}
         onSendMessage={handleSendMessage}
+        currentUserId={myId}
       />
       <ParticipantList
         isOpen={isParticipantsOpen}
