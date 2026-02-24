@@ -168,32 +168,41 @@ const Player = ({
         </AnimatePresence>
 
         {/* Status Indicators Overlay */}
-        <div className="absolute bottom-2 left-2 flex items-center space-x-2">
-          {/* Audio Status */}
-          <motion.div
-            className={cx(
-              "p-1.5 rounded-full backdrop-blur-sm",
-              muted ? "bg-red-500/80" : "bg-green-500/80"
-            )}
-            whileHover={{ scale: 1.1 }}
-            transition={{ duration: 0.2 }}
-          >
-            {muted ? (
-              <MicOff size={12} className="text-white" />
-            ) : (
-              <Mic size={12} className="text-white" />
-            )}
-          </motion.div>
+        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+          {/* User Name Overlay — Bottom Left */}
+          <div className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 max-w-[120px]">
+            <p className="text-[10px] text-white font-medium truncate">
+              {userName || (userId ? `User ${userId.slice(0, 4)}` : 'Unknown')}
+            </p>
+          </div>
 
-          {/* Connection Quality */}
-          <motion.div
-            className={cx(
-              "w-2 h-2 rounded-full",
-              getConnectionColor()
-            )}
-            animate={isSpeaking ? { scale: [1, 1.3, 1] } : {}}
-            transition={{ duration: 0.5, repeat: isSpeaking ? Infinity : 0 }}
-          />
+          <div className="flex items-center space-x-2">
+            {/* Audio Status */}
+            <motion.div
+              className={cx(
+                "p-1 rounded-full backdrop-blur-sm shadow-lg",
+                muted ? "bg-red-500/90" : "bg-green-500/90"
+              )}
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.2 }}
+            >
+              {muted ? (
+                <MicOff size={10} className="text-white" />
+              ) : (
+                <Mic size={10} className="text-white" />
+              )}
+            </motion.div>
+
+            {/* Connection Quality / Speaking */}
+            <motion.div
+              className={cx(
+                "w-2 h-2 rounded-full",
+                getConnectionColor()
+              )}
+              animate={isSpeaking ? { scale: [1, 1.4, 1] } : {}}
+              transition={{ duration: 0.5, repeat: isSpeaking ? Infinity : 0 }}
+            />
+          </div>
         </div>
 
         {/* Hand Raise Indicator */}

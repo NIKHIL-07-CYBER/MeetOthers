@@ -124,13 +124,16 @@ const ChatSidebar = ({ isOpen, onClose, roomId, messages = [], onSendMessage, cu
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {messages.map((message, index) => {
               const isOwn = message.userId === currentUserId;
+              const senderName = isOwn ? 'You' : (message.userName || `Participant ${message.userId?.slice(0, 4)}`);
+
               return (
                 <Message
                   key={message.id || index}
                   message={{
                     ...message,
-                    sender: isOwn ? 'You' : (message.userName || `User ${message.userId?.slice(0, 4)}`),
-                    content: message.text
+                    sender: senderName,
+                    content: message.text || message.content,
+                    type: message.type || 'text'
                   }}
                   isOwn={isOwn}
                 />

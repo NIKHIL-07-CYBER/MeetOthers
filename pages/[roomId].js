@@ -345,7 +345,16 @@ const Room = () => {
   // Chat logic
   const handleSendMessage = (msg) => {
     if (!msg.trim()) return;
-    socket.emit("chatMessage", { roomId, message: { userId: myId, text: msg, timestamp: new Date().toISOString() } });
+    socket.emit("chatMessage", {
+      roomId,
+      message: {
+        userId: myId,
+        userName: players[myId]?.name || `User ${myId.slice(0, 6)}`,
+        text: msg,
+        type: 'text',
+        timestamp: new Date().toISOString()
+      }
+    });
   };
 
   useEffect(() => {
@@ -422,7 +431,7 @@ const Room = () => {
                 playing={playerHighlighted.playing}
                 isLocal={playerHighlighted.userId === myId}
                 userId={playerHighlighted.userId}
-                userName={`User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`}
+                userName={players[playerHighlighted.userId]?.name || `User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`}
                 connectionQuality="good"
                 isSpeaking={false}
                 isHandRaised={playerHighlighted.isHandRaised || (playerHighlighted.userId === myId && isHandRaised)}
@@ -458,7 +467,7 @@ const Room = () => {
                     muted={nonHighlighted[playerId].muted}
                     playing={nonHighlighted[playerId].playing}
                     isActive={false}
-                    userName={`User ${playerId.slice(0, 6)}`}
+                    userName={nonHighlighted[playerId].name || `User ${playerId.slice(0, 6)}`}
                     userId={playerId}
                     connectionQuality="good"
                     isSpeaking={false}
