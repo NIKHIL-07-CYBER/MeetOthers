@@ -90,7 +90,7 @@ const ChatSidebar = ({ isOpen, onClose, roomId, messages = [], onSendMessage, cu
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed inset-y-0 right-0 w-full md:w-80 bg-black/60 md:bg-black/30 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col shadow-2xl"
+          className="fixed right-0 top-16 bottom-0 w-80 bg-white/10 dark:bg-black/30 backdrop-blur-md border-l border-white/20 z-30 flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-white/20">

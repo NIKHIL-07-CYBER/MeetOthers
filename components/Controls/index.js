@@ -190,7 +190,7 @@ const Controls = ({
       role="toolbar"
       aria-label="Video call controls"
     >
-      <div className="flex items-center flex-wrap justify-center gap-2 md:gap-3 bg-black/30 backdrop-blur-xl rounded-2xl px-4 md:px-6 py-3 md:py-4 border border-white/10 shadow-2xl">
+      <div className="flex items-center space-x-3 bg-black/20 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/10">
         {/* Audio Toggle */}
         <ControlButton
           Icon={muted ? MicOff : Mic}
@@ -199,8 +199,7 @@ const Controls = ({
           variant={muted ? 'danger' : 'success'}
           tooltip={muted ? 'Unmute microphone' : 'Mute microphone'}
           ariaLabel={muted ? 'Unmute microphone' : 'Mute microphone'}
-          keyboardShortcut="M"
-          className="p-2 md:p-4"
+          keyboardShortcut="Space"
         />
 
         {/* Video Toggle */}
@@ -212,7 +211,6 @@ const Controls = ({
           tooltip={playing ? 'Turn off camera' : 'Turn on camera'}
           ariaLabel={playing ? 'Turn off camera' : 'Turn on camera'}
           keyboardShortcut="V"
-          className="p-2 md:p-4"
         />
 
         {/* Screen Share */}
@@ -224,7 +222,6 @@ const Controls = ({
           tooltip={isScreenSharing ? 'Stop screen sharing' : 'Share your screen'}
           ariaLabel={isScreenSharing ? 'Stop screen sharing' : 'Share your screen'}
           keyboardShortcut="S"
-          className="p-2 md:p-4"
         />
 
         {/* Raise Hand */}
@@ -236,7 +233,6 @@ const Controls = ({
           tooltip={isHandRaised ? 'Lower hand' : 'Raise hand'}
           ariaLabel={isHandRaised ? 'Lower hand' : 'Raise hand'}
           keyboardShortcut="H"
-          className="p-2 md:p-4"
         />
 
         {/* Chat */}
@@ -247,7 +243,6 @@ const Controls = ({
           tooltip="Open chat panel"
           ariaLabel="Toggle chat panel"
           keyboardShortcut="C"
-          className="p-2 md:p-4"
         />
 
         {/* Participants */}
@@ -258,34 +253,34 @@ const Controls = ({
           tooltip="View participants"
           ariaLabel="Toggle participants panel"
           keyboardShortcut="P"
-          className="p-2 md:p-4"
         />
 
         {/* Recording */}
-        {/* Only show recording on medium screens and up to save space on mobile */}
-        <div className="hidden sm:block">
-          <ControlButton
-            Icon={isRecording ? Square : Circle}
-            onClick={toggleRecording}
-            isActive={isRecording}
-            variant={isRecording ? 'danger' : 'default'}
-            tooltip={isRecording ? 'Stop recording meeting' : 'Start recording meeting'}
-            ariaLabel={isRecording ? 'Stop recording meeting' : 'Start recording meeting'}
-            keyboardShortcut="R"
-            className="p-2 md:p-4"
-          />
-        </div>
+        <ControlButton
+          Icon={isRecording ? Square : Circle}
+          onClick={toggleRecording}
+          isActive={isRecording}
+          variant={isRecording ? 'danger' : 'default'}
+          tooltip={isRecording ? 'Stop recording meeting' : 'Start recording meeting'}
+          ariaLabel={isRecording ? 'Stop recording meeting' : 'Start recording meeting'}
+          keyboardShortcut="R"
+        />
 
-        {/* Settings - Hidden on mobile, usually in 'More' options or navbar */}
-        <div className="hidden sm:block">
-          <ControlButton
-            Icon={Settings}
-            onClick={onSettings}
-            tooltip="Open settings"
-            ariaLabel="Open meeting settings"
-            className="p-2 md:p-4"
-          />
-        </div>
+        {/* Settings */}
+        <ControlButton
+          Icon={Settings}
+          onClick={onSettings}
+          tooltip="Open settings"
+          ariaLabel="Open meeting settings"
+        />
+
+        {/* More Options */}
+        <ControlButton
+          Icon={MoreHorizontal}
+          onClick={() => console.log('More options')}
+          tooltip="More options"
+          ariaLabel="Show more options"
+        />
 
         {/* End Call */}
         <ControlButton
@@ -295,7 +290,7 @@ const Controls = ({
           tooltip="End call"
           ariaLabel="End the meeting call"
           keyboardShortcut="Ctrl+D"
-          className="p-2 md:p-4 ml-1 md:ml-2"
+          className="ml-2"
         />
       </div>
     </motion.div>
