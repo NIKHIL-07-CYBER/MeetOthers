@@ -10,14 +10,15 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Dynamically set backend URL
+    // NOTE: frontend is at meetothers.onrender.com, backend is at meshmeet.onrender.com
     const isProd = typeof window !== "undefined" && window.location.hostname !== "localhost";
     const backendUrl = isProd
-      ? "https://meshmeet.onrender.com" // Render backend URL
-      : "http://localhost:3000"; // Local Next.js dev server
+      ? "https://meshmeet.onrender.com" // ✅ Render backend (separate service from frontend)
+      : "http://localhost:3000";
 
     const connection = io(backendUrl, {
-      path: "/api/socket",
-      transports: ["polling", "websocket"], // Graceful upgrade: polling first, then websocket
+      path: "/api/socket/",              // ✅ FIX: Trailing slash — must match server path exactly
+      transports: ["websocket"],         // ✅ FIX: WebSocket-only — Render drops long-polling connections
       reconnectionAttempts: 10,
       reconnectionDelay: 1000, // Initial delay
       reconnectionDelayMax: 5000, // Max delay

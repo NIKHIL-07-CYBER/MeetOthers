@@ -9,7 +9,7 @@ const useMediaStream = () => {
   const isStreamSet = useRef(false);
   const currentStream = useRef(null);
 
-  const initStream = useCallback(async (constraints = { audio: true, video: true }) => {
+  const initStream = useCallback(async (constraints = null) => {
     try {
       setError(null);
 
@@ -21,6 +21,30 @@ const useMediaStream = () => {
         return null;
       }
 
+      // ✅ FIX: Probe available hardware BEFORE calling getUserMedia.
+      // On machines with no camera (VM, headless, some laptops) requesting video:true
+      // throws NotFoundError and kills the entire stream. enumerateDevices() is safe —
+      // it never prompts for permission and never throws.
+      if (!constraints) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasCamera = devices.some((d) => d.kind === "videoinput");
+        const hasMic = devices.some((d) => d.kind === "audioinput");
+
+        if (!hasCamera && !hasMic) {
+          const errorMsg = "No camera or microphone found on this device.";
+          console.warn("[useMediaStream]", errorMsg);
+          setError(errorMsg);
+          setIsVideoEnabled(false);
+          setIsAudioEnabled(false);
+          return null;
+        }
+
+        constraints = { video: hasCamera, audio: hasMic };
+        if (!hasCamera) {
+          console.warn("[useMediaStream] No camera found — requesting audio-only stream.");
+        }
+      }
+
       const newStream = await navigator.mediaDevices.getUserMedia(constraints);
 
       // Stop previous stream if exists
@@ -30,17 +54,22 @@ const useMediaStream = () => {
 
       currentStream.current = newStream;
       setStream(newStream);
-      setIsVideoEnabled(constraints.video);
-      setIsAudioEnabled(constraints.audio);
+      setIsVideoEnabled(!!constraints.video);
+      setIsAudioEnabled(!!constraints.audio);
 
       return newStream;
     } catch (error) {
       console.error("Error accessing media devices:", error);
-      
+
       // Robust error handling UI messages
       if (error.name === "NotAllowedError") {
         setError("Permission denied. Please allow access to camera/microphone.");
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        // ✅ FIX: Retry with audio-only if combined request fails at OS level
+        if (constraints?.video && constraints?.audio) {
+          console.warn("[useMediaStream] Combined getUserMedia failed — retrying audio-only.");
+          return initStream({ video: false, audio: true });
+        }
         setError("No camera or microphone found.");
       } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
         setError("Camera/microphone is already in use by another application.");
@@ -50,6 +79,7 @@ const useMediaStream = () => {
       return null;
     }
   }, []);
+
 
   const toggleVideo = useCallback(async () => {
     if (!currentStream.current) return null;

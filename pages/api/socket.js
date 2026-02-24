@@ -1,8 +1,9 @@
 import { Server } from "socket.io"
 
 const allowedOrigins = [
-    "http://localhost:3000", // local dev
-    "https://meshmeet.onrender.com", // production frontend
+    "http://localhost:3000",           // local dev
+    "https://meetothers.onrender.com", // production frontend
+    "https://meshmeet.onrender.com",   // same-origin fallback
 ];
 
 const socketHandler = (req, res) => {
@@ -10,10 +11,11 @@ const socketHandler = (req, res) => {
         const io = new Server(res.socket.server, {
             cors: {
                 origin: allowedOrigins,
-                methods: ["GET", "POST"]
+                methods: ["GET", "POST"],
+                credentials: true,          // ✅ FIX: Allow credentials from cross-origin frontend
             },
             transports: ["websocket", "polling"],
-            path: "/api/socket", // Explicitly set socket.io path for Next.js API route
+            path: "/api/socket/",           // ✅ FIX: Trailing slash — must match client path exactly
             pingTimeout: 20000,   // ✅ FIX: Fail fast — detect dead connections in 20s
             pingInterval: 15000,  // ✅ FIX: Ping every 15s — well within Render's 55s idle limit
         })
