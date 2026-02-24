@@ -100,7 +100,7 @@ const Player = ({
           ref={videoRef}
           autoPlay
           playsInline
-          muted={muted}
+          muted={isLocal ? true : muted}
           controls={false}
           onCanPlay={handleVideoLoad}
           onLoadedMetadata={handleVideoLoad}

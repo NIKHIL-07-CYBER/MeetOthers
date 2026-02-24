@@ -322,18 +322,24 @@ const Room = () => {
 
   const handleToggleAudio = () => {
     mediaToggleAudio();
-    // Read actual track state AFTER toggling (synchronous flip inside mediaToggleAudio)
+    // Synchronous read from the track we just flipped
     const audioTrack = streamRef.current?.getAudioTracks()[0];
-    const nowEnabled = audioTrack ? audioTrack.enabled : false;
-    // ✅ FIX: Update local player tile so mic icon and participant list reflect new state
+    const isMicOn = audioTrack ? audioTrack.enabled : false;
+
+    console.log(`[Audio] Mic toggled: ${isMicOn ? "ON" : "OFF"}`);
+
+    // Immediately sync local player UI (mic icon & participant list)
     setPlayers((prev) => ({
       ...prev,
       [myId]: {
         ...(prev[myId] || {}),
-        muted: !nowEnabled,
+        muted: !isMicOn,
+        url: streamRef.current,
       },
     }));
-    socket?.emit("user-toggled-audio", myId, roomId, nowEnabled);
+
+    // Broadcast change to others
+    socket?.emit("user-toggled-audio", myId, roomId, isMicOn);
   };
 
   // Chat logic

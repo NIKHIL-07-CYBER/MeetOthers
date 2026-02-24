@@ -168,12 +168,7 @@ const ChatSidebar = ({ isOpen, onClose, roomId, messages = [], onSendMessage, cu
                 />
               </div>
 
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <Paperclip className="w-5 h-5 text-gray-300" />
-              </button>
+
 
               <motion.button
                 onClick={sendMessage}
@@ -186,13 +181,7 @@ const ChatSidebar = ({ isOpen, onClose, roomId, messages = [], onSendMessage, cu
               </motion.button>
             </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileUpload}
-              className="hidden"
-              accept="*/*"
-            />
+
           </div>
         </motion.div>
       )}
