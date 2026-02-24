@@ -9,16 +9,13 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Dynamically set backend URL
-    // NOTE: frontend is at meetothers.onrender.com, backend is at meshmeet.onrender.com
-    const isProd = typeof window !== "undefined" && window.location.hostname !== "localhost";
-    const backendUrl = isProd
-      ? "https://meshmeet.onrender.com" // ✅ Render backend (separate service from frontend)
-      : "http://localhost:3000";
+    // ✅ Single-service: connect to the same origin that served the page.
+    // In dev: http://localhost:3000  |  In prod: https://meetothers.onrender.com
+    const backendUrl = typeof window !== "undefined" ? window.location.origin : "";
 
     const connection = io(backendUrl, {
-      path: "/api/socket/",              // ✅ FIX: Trailing slash — must match server path exactly
-      transports: ["websocket"],         // ✅ FIX: WebSocket-only — Render drops long-polling connections
+      path: "/api/socket/",   // must match server path exactly
+      transports: ["websocket"], // WebSocket-only — Render drops long-polling
       reconnectionAttempts: 10,
       reconnectionDelay: 1000, // Initial delay
       reconnectionDelayMax: 5000, // Max delay

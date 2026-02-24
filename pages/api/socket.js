@@ -2,8 +2,7 @@ import { Server } from "socket.io"
 
 const allowedOrigins = [
     "http://localhost:3000",           // local dev
-    "https://meetothers.onrender.com", // production frontend
-    "https://meshmeet.onrender.com",   // same-origin fallback
+    "https://meetothers.onrender.com", // production (single Render service)
 ];
 
 const socketHandler = (req, res) => {

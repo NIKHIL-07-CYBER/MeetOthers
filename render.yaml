@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: meshmeet
+    name: meetothers
     env: node
     region: oregon
     plan: free
