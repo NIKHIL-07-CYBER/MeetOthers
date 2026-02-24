@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Users, 
-  X, 
-  Mic, 
-  MicOff, 
-  Video, 
-  VideoOff, 
-  Hand, 
-  Crown, 
-  UserX, 
-  Volume2, 
+import {
+  Users,
+  X,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Hand,
+  Crown,
+  UserX,
+  Volume2,
   VolumeX,
   Wifi,
   WifiOff,
@@ -41,24 +41,23 @@ const ConnectionQuality = ({ quality }) => {
       {[1, 2, 3, 4].map((bar) => (
         <div
           key={bar}
-          className={`w-1 h-3 rounded-sm ${
-            bar <= getQualityBars() 
+          className={`w-1 h-3 rounded-sm ${bar <= getQualityBars()
               ? getQualityColor().replace('text-', 'bg-')
               : 'bg-gray-600'
-          }`}
+            }`}
         />
       ))}
     </div>
   );
 };
 
-const ParticipantItem = ({ 
-  participant, 
-  isHost, 
-  currentUserId, 
-  onMuteParticipant, 
+const ParticipantItem = ({
+  participant,
+  isHost,
+  currentUserId,
+  onMuteParticipant,
   onRemoveParticipant,
-  onMakeHost 
+  onMakeHost
 }) => {
   const [showActions, setShowActions] = useState(false);
   const isCurrentUser = participant.id === currentUserId;
@@ -116,7 +115,7 @@ const ParticipantItem = ({
           ) : (
             <Mic className="w-4 h-4 text-green-400" />
           )}
-          
+
           {participant.isVideoOn ? (
             <Video className="w-4 h-4 text-green-400" />
           ) : (
@@ -157,7 +156,7 @@ const ParticipantItem = ({
                     {participant.isMuted ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
                     <span>{participant.isMuted ? 'Unmute' : 'Mute'}</span>
                   </button>
-                  
+
                   <button
                     onClick={() => onMakeHost(participant.id)}
                     className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-white hover:bg-gray-700 transition-colors"
@@ -165,7 +164,7 @@ const ParticipantItem = ({
                     <Crown className="w-4 h-4" />
                     <span>Make Host</span>
                   </button>
-                  
+
                   <button
                     onClick={() => onRemoveParticipant(participant.id)}
                     className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
@@ -183,12 +182,12 @@ const ParticipantItem = ({
   );
 };
 
-const ParticipantList = ({ 
-  isOpen, 
-  onClose, 
-  participants = [], 
+const ParticipantList = ({
+  isOpen,
+  onClose,
+  participants = [],
   currentUserId,
-  isHost = false 
+  isHost = false
 }) => {
   const handleMuteParticipant = (participantId) => {
     // In real implementation, this would send a signal to mute the participant
@@ -222,7 +221,7 @@ const ParticipantList = ({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed right-0 top-16 bottom-0 w-80 bg-white/10 dark:bg-black/30 backdrop-blur-md border-l border-white/20 z-30 flex flex-col"
+          className="fixed inset-y-0 right-0 w-full md:w-80 bg-black/60 md:bg-black/30 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col shadow-2xl"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-white/20">
@@ -267,7 +266,7 @@ const ParticipantList = ({
                   <UserX className="w-4 h-4" />
                   <span className="text-sm">Remove All</span>
                 </button>
-                
+
                 <button className="w-full flex items-center justify-center space-x-2 p-2 bg-yellow-500/20 hover:bg-yellow-500/30 rounded-lg text-yellow-400 transition-colors">
                   <MicOff className="w-4 h-4" />
                   <span className="text-sm">Mute All</span>

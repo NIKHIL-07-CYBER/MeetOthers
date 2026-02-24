@@ -146,10 +146,6 @@ const Room = () => {
 
     const handleUserConnected = (data) => {
       const newUser = data.userId || data;
-      // ✅ FIX CV-2: Removed setTimeout hack. Call immediately.
-      // The race condition is solved at the source: usePeer no longer emits join-room,
-      // so the only join signal is joinRoom → newUserJoined → user-connected, which
-      // fires AFTER [roomId].js's room join useEffect has already set up all listeners.
       const call = peer.call(newUser, stream);
       if (!call) return;
       peerConnections.current[newUser] = call;
@@ -179,9 +175,6 @@ const Room = () => {
   useEffect(() => {
     if (!peer) return;
 
-    // ✅ FIX BUG-2: Use streamRef.current (not the closed-over `stream` value) so
-    // this handler — registered once when `peer` is ready — always answers with the
-    // latest stream even if getUserMedia resolved after peer.on("call") was registered.
     const handleCall = (call) => {
       const { peer: callerId } = call;
       call.answer(streamRef.current);  // always latest, never stale null
@@ -206,21 +199,15 @@ const Room = () => {
     };
 
     peer.on("call", handleCall);
-    // ✅ FIX BUG-2: `stream` removed from deps — streamRef.current provides live value.
-    // Only re-register when `peer` itself changes (e.g. reconnect).
     return () => peer.off("call", handleCall);
   }, [peer, setPlayers]);
 
   // Room creation/join logic
-  // ✅ FIX CV-2: Triggered by myId (PeerJS open event), NOT peer object.
-  // usePeer no longer emits join-room, so this is now the single authoritative join flow.
   useEffect(() => {
     if (!socket || !myId || !roomId) return;
-    // Try to create room first
     socket.emit("createRoom", { roomId, userId: myId, userInfo: { name: `User ${myId.slice(0, 6)}` } });
 
     const handleRoomExists = () => {
-      // Room exists, so join it
       socket.emit("joinRoom", { roomId, userId: myId, userInfo: { name: `User ${myId.slice(0, 6)}` } });
     };
     const handleNoSuchRoom = () => alert("Room does not exist.");
@@ -251,10 +238,9 @@ const Room = () => {
       socket.off("noSuchRoom", handleNoSuchRoom);
       socket.off("newUserJoined", handleNewUserJoined);
     };
-    // ✅ FIX CV-2: `peer` removed from deps — myId only becomes truthy after PeerJS open
   }, [socket, myId, roomId, setPlayers]);
 
-  // Keep streamRef in sync with stream state so peer.on("call") always has the latest.
+  // Keep streamRef in sync with stream state
   useEffect(() => {
     streamRef.current = stream;
   }, [stream]);
@@ -267,21 +253,16 @@ const Room = () => {
       [myId]: {
         ...(prev[myId] || {}),
         url: stream,
-        muted: !isAudioEnabled, // reflects actual mic state
+        muted: !isAudioEnabled,
         playing: isVideoEnabled,
         isHandRaised: false,
       },
     }));
   }, [myId, setPlayers, stream, isVideoEnabled, isAudioEnabled]);
 
-  // (peerConnections ref is declared at the top of the component — see line ~42)
-
   // Control handlers
   const handleToggleVideo = async () => {
     const newStream = await mediaToggleVideo();
-
-    // ✅ FIX CV-3: Derive truth from the returned stream, NOT the stale isVideoEnabled closure.
-    // isVideoEnabled is the value from the last render, not the new value after the async toggle.
     const nowEnabled = newStream
       ? newStream.getVideoTracks().length > 0 &&
       (newStream.getVideoTracks()[0]?.enabled ?? false)
@@ -297,10 +278,8 @@ const Room = () => {
       },
     }));
 
-    // ✅ FIX CV-3: Emit derived truth, not stale !isVideoEnabled
     socket?.emit("user-toggled-video", myId, roomId, nowEnabled);
 
-    // ✅ FIX LM-1: Replace track in all peer connections using the new stream
     const newVideoTrack = newStream?.getVideoTracks()[0] ?? null;
     await Promise.all(
       Object.values(peerConnections.current).map(async (call) => {
@@ -310,7 +289,6 @@ const Room = () => {
           .find((s) => s.track?.kind === "video");
         if (sender) {
           try {
-            // replaceTrack(null when disabled) = sends black frame, keeps sender alive
             await sender.replaceTrack(newVideoTrack);
           } catch (e) {
             console.warn("[replaceTrack] video:", e);
@@ -324,12 +302,8 @@ const Room = () => {
     mediaToggleAudio();
   };
 
-  // ✅ FIX: Consolidate Mic Toggle Sync & Emission
-  // instead of manual updates in the handler, we react to the hook's state
   useEffect(() => {
     if (!myId || !roomId) return;
-
-    // Sync local players state (for icons/list)
     setPlayers((prev) => ({
       ...prev,
       [myId]: {
@@ -338,14 +312,9 @@ const Room = () => {
         url: streamRef.current,
       },
     }));
-
-    // Emit to others only if socket is alive
     socket?.emit("user-toggled-audio", myId, roomId, isAudioEnabled);
-
-    console.log(`[Audio Event] Mic is now: ${isAudioEnabled ? "ON" : "OFF"}`);
   }, [isAudioEnabled, myId, roomId, socket]);
 
-  // Sync video state similarly for consistency
   useEffect(() => {
     if (!myId || !roomId) return;
     setPlayers((prev) => ({
@@ -385,12 +354,10 @@ const Room = () => {
 
   const handleToggleHandRaise = () => {
     setIsHandRaised(!isHandRaised);
-    // Emit socket event for real-time sync
     socket?.emit("user-hand-raise", myId, roomId, !isHandRaised);
   };
 
   const handleToggleScreenShare = async () => {
-    // ✅ FIX CV-5: Screen share now replaces the video track in ALL peer connections.
     const newStream = isScreenSharing
       ? await stopScreenShare()
       : await startScreenShare();
@@ -432,51 +399,52 @@ const Room = () => {
         participantCount={participants.length}
         meetingDuration={meetingDuration}
       />
-      <div className={`pt-16 pb-32 px-4 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'mr-80' : ''}`} id="main-content">
-        {/* Big active player */}
-        <m.div
-          className={styles.activePlayerContainer}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          {playerHighlighted ? (
-            <div className={styles.videoFrame}>
-              <Player
-                stream={playerHighlighted.url}
-                muted={playerHighlighted.muted}
-                playing={playerHighlighted.playing}
-                isLocal={playerHighlighted.userId === myId}
-                userId={playerHighlighted.userId}
-                userName={players[playerHighlighted.userId]?.name || `User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`}
-                connectionQuality="good"
-                isSpeaking={false}
-                isHandRaised={playerHighlighted.isHandRaised || (playerHighlighted.userId === myId && isHandRaised)}
-                isActive={true}
-              />
-            </div>
-          ) : (
-            <VideoSkeleton isActive={true} />
-          )}
-        </m.div>
+      <div className="flex flex-col h-screen bg-black overflow-hidden pt-16 relative">
+        {/* Main Workspace Area (Videos + Sidebars Overlay) */}
+        <div className="flex flex-1 relative overflow-hidden">
 
-        {/* Small inactive players */}
-        <m.div
-          className={`${styles.inActivePlayerContainer} ${isChatOpen || isParticipantsOpen ? 'right-96' : ''}`}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          {Object.keys(nonHighlighted).length > 0 ? (
-            Object.keys(nonHighlighted).map((playerId, index) => {
-              const { url, muted, playing, name } = nonHighlighted[playerId];
-              return (
+          {/* Video Content Area */}
+          <div className={`flex-1 flex flex-col lg:flex-row transition-all duration-300 p-4 gap-4 overflow-hidden ${(isChatOpen || isParticipantsOpen) ? 'lg:mr-80' : ''
+            }`}>
+
+            {/* Primary/Highlighted Player Container */}
+            <m.div
+              className="flex-1 min-h-[50%] lg:min-h-0 relative rounded-2xl overflow-hidden bg-gray-900 shadow-2xl"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              {playerHighlighted ? (
+                <Player
+                  stream={playerHighlighted.url}
+                  muted={playerHighlighted.muted}
+                  playing={playerHighlighted.playing}
+                  isLocal={playerHighlighted.userId === myId}
+                  userId={playerHighlighted.userId}
+                  userName={players[playerHighlighted.userId]?.name || `User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`}
+                  connectionQuality="good"
+                  isSpeaking={false}
+                  isHandRaised={playerHighlighted.isHandRaised || (playerHighlighted.userId === myId && isHandRaised)}
+                  isActive={true}
+                />
+              ) : (
+                <VideoSkeleton isActive={true} />
+              )}
+            </m.div>
+
+            {/* Secondary Players Grid/Scroll */}
+            <m.div
+              className={`
+                flex gap-4 overflow-x-auto lg:overflow-y-auto lg:flex-col
+                ${Object.keys(nonHighlighted).length > 0 ? 'h-1/3 lg:h-auto lg:w-80 min-h-[140px]' : 'h-0 lg:w-0'}
+                transition-all duration-300 scrollbar-hide lg:scrollbar-default
+              `}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              {Object.keys(nonHighlighted).map((playerId, index) => (
                 <m.div
                   key={playerId}
-                  className={styles.videoFrame}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 + index * 0.1 }}
+                  className="relative flex-shrink-0 w-48 lg:w-full aspect-video rounded-xl overflow-hidden bg-gray-800 shadow-lg"
                   layout
                 >
                   <Player
@@ -491,56 +459,52 @@ const Room = () => {
                     isHandRaised={nonHighlighted[playerId].isHandRaised || (playerId === myId && isHandRaised)}
                   />
                 </m.div>
-              );
-            })
-          ) : (
-            // ✅ FIX BUG-4: No skeleton fallback here — nonHighlighted being empty just
-            // means you're alone. Showing skeletons would mask real connected users
-            // who have url:null while their stream is still loading.
-            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
-              Waiting for others to join...
-            </div>
-          )}
-        </m.div>
+              ))}
+            </m.div>
+          </div>
+
+          {/* Sidebar Overlays (Mobile: Full-screen, Desktop: Side-panel) */}
+          <ChatSidebar
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+            roomId={roomId}
+            messages={chatMessages}
+            onSendMessage={handleSendMessage}
+            currentUserId={myId}
+          />
+          <ParticipantList
+            isOpen={isParticipantsOpen}
+            onClose={() => setIsParticipantsOpen(false)}
+            participants={participants}
+            currentUserId={myId}
+            isHost={true}
+          />
+        </div>
+
+        {/* Controls Toolbar Overlay */}
+        <div className="absolute bottom-6 left-0 right-0 flex justify-center px-4 pointer-events-none">
+          <div className={`pointer-events-auto transition-all duration-300 ${(isChatOpen || isParticipantsOpen) ? 'lg:mr-80' : ''}`}>
+            <Controls
+              muted={!isAudioEnabled}
+              playing={isVideoEnabled}
+              toggleAudio={handleToggleAudio}
+              toggleVideo={handleToggleVideo}
+              onEndCall={handleEndCall}
+              toggleScreenShare={handleToggleScreenShare}
+              isScreenSharing={isScreenSharing}
+              isHandRaised={isHandRaised}
+              toggleHandRaise={handleToggleHandRaise}
+              toggleChat={() => setIsChatOpen(!isChatOpen)}
+              toggleParticipants={() => setIsParticipantsOpen(!isParticipantsOpen)}
+              isChatOpen={isChatOpen}
+              isParticipantsOpen={isParticipantsOpen}
+              isRecording={isRecording}
+              toggleRecording={() => setIsRecording(!isRecording)}
+              onSettings={handleSettings}
+            />
+          </div>
+        </div>
       </div>
-      {/* Controls bar — shifts its right boundary so the pill stays centered in the available space */}
-      <div
-        className={`fixed bottom-0 left-0 z-50 flex justify-center items-end pb-6 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'right-80' : 'right-0'}`}
-      >
-        <Controls
-          muted={!isAudioEnabled}
-          playing={isVideoEnabled}
-          toggleAudio={handleToggleAudio}
-          toggleVideo={handleToggleVideo}
-          onEndCall={handleEndCall}
-          toggleScreenShare={handleToggleScreenShare}
-          isScreenSharing={isScreenSharing}
-          isHandRaised={isHandRaised}
-          toggleHandRaise={handleToggleHandRaise}
-          toggleChat={() => setIsChatOpen(!isChatOpen)}
-          toggleParticipants={() => setIsParticipantsOpen(!isParticipantsOpen)}
-          isChatOpen={isChatOpen}
-          isParticipantsOpen={isParticipantsOpen}
-          isRecording={isRecording}
-          toggleRecording={() => setIsRecording(!isRecording)}
-          onSettings={handleSettings}
-        />
-      </div>
-      <ChatSidebar
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        roomId={roomId}
-        messages={chatMessages}
-        onSendMessage={handleSendMessage}
-        currentUserId={myId}
-      />
-      <ParticipantList
-        isOpen={isParticipantsOpen}
-        onClose={() => setIsParticipantsOpen(false)}
-        participants={participants}
-        currentUserId={myId}
-        isHost={true}
-      />
     </LazyMotion>
   );
 };
