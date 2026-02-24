@@ -1,83 +1,80 @@
-# MeshMeet (MeetOthers)
+# MeshMeet 🚀
 
-A simple, modern video meeting app for real-time collaboration and learning. MeshMeet lets you create or join video/audio meetings instantly, powered by WebRTC for peer-to-peer connections and Socket.IO for real-time signaling. Deployed and production-ready on Render.
+**MeshMeet** is a high-performance, modern video conferencing application designed for seamless real-time collaboration. Built with **Next.js**, **Socket.IO**, and **WebRTC**, it provides a robust peer-to-peer communication experience with minimal latency.
 
----
+![MeshMeet Banner](public/favicon.ico) <!-- You can add a proper banner later -->
 
-## Features
+## ✨ Key Features
 
-- 🟢 Real-time video and audio meetings
-- 🔗 WebSocket-based signaling server (Socket.IO)
-- 🤝 Peer-to-peer communication (WebRTC)
-- 👥 Multiple participants per room
-- ✋ Hand raise, chat, and screen sharing (if enabled)
-- 🚀 Deployed and ready to use on Render
+- 🎥 **Real-time Video & Audio:** High-quality P2P media streams.
+- 💬 **Instant Signaling:** Low-latency room management via Socket.IO.
+- 🤝 **Peer-to-Peer:** Direct browser-to-browser communication using WebRTC.
+- 👥 **Multi-User Support:** Easily handle multiple participants in a single room.
+- 🔒 **Secure & Modern:** Built with React 18 and Next.js 15 for a sleek, responsive UI.
+- 🌍 **Deployment Ready:** Optimized for platforms like Render and Vercel.
 
----
+## 🛠️ Tech Stack
 
-## Tech Stack
+- **Frontend:** [Next.js](https://nextjs.org/), [React](https://reactjs.org/), [Tailwind CSS](https://tailwindcss.com/)
+- **State Management:** React Context API
+- **Real-time Communication:** [Socket.IO](https://socket.io/), [WebRTC](https://webrtc.org/)
+- **Media Handling:** [PeerJS](https://peerjs.com/)
+- **Animations:** [Framer Motion](https://www.framer.com/motion/)
 
-- **Frontend:** React, Next.js
-- **Backend:** Node.js, Express, Socket.IO
-- **Real-time:** WebRTC (peer-to-peer), Socket.IO (signaling)
-- **Deployment:** Render
+## 🚀 Getting Started
 
----
+### Prerequisites
 
-## Installation & Usage
+- Node.js (v18 or higher)
+- npm or yarn
 
-### 1. Clone the repository
+### Installation
 
-```bash
-git clone https://github.com/yourusername/MeetOthers.git
-cd MeetOthers
-```
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-username/meet.git
+   cd meet
+   ```
 
-### 2. Install dependencies
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-```bash
-npm install
-```
+3. **Set up Environment Variables:**
+   Copy `.env.local.example` to `.env.local` and fill in your credentials (e.g., TURN server if needed).
+   ```bash
+   cp .env.local.example .env.local
+   ```
 
-### 3. Run the development server
+4. **Run the Development Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-```bash
-npm run dev
-```
+## 📦 Deployment
 
-- The app will be available at [http://localhost:3000](http://localhost:3000)
+MeshMeet is designed to be easily deployed on **Render**.
 
-### 4. Open in your browser
+1. Connect your GitHub repository to Render.
+2. Use the provided `render.yaml` for a "Blueprint" deployment.
+3. Configure your Environment Variables in the Render dashboard.
 
-Visit [http://localhost:3000](http://localhost:3000) and start a meeting!
+## 🤝 Contributing
 
----
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-## Deployment
-
-MeshMeet is deployed and live on Render:
-
-**Production URL:**  
-[https://meshmeet.onrender.com](https://meshmeet.onrender.com)
-
----
-
-## Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add new feature'`)
-4. Push to your branch (`git push origin feature/your-feature`)
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
----
+## 📄 License
 
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-**Happy meeting! 🚀**
+Built with ❤️ by [Nikhil](https://github.com/your-username)

@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import styles from "@/styles/home.module.css";
 import { useState } from "react";
 import { Video, Users, Plus, LogIn } from "lucide-react";
-import { motion } from "framer-motion";
+import { LazyMotion, domMax, m } from "framer-motion";
 import ParticleBackground from "@/components/ParticleBackground";
 
 export default function Home() {
@@ -24,16 +24,16 @@ export default function Home() {
   };
 
   return (
-    <>
+    <LazyMotion features={domMax}>
       <ParticleBackground />
       <div className={styles.container}>
-        <motion.div 
+        <m.div
           className={styles.homeContainer}
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <motion.div 
+          <m.div
             className={styles.header}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -42,9 +42,9 @@ export default function Home() {
             <Video className={styles.logo} size={48} />
             <h1 className={styles.title}>MeetOthers</h1>
             <p className={styles.subtitle}>Connect with anyone, anywhere</p>
-          </motion.div>
+          </m.div>
 
-          <motion.div 
+          <m.div
             className={styles.actionContainer}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -58,8 +58,9 @@ export default function Home() {
                   value={roomId}
                   onChange={(e) => setRoomId(e?.target?.value)}
                   onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
+                  suppressHydrationWarning
                 />
-                <motion.button 
+                <m.button
                   className={styles.joinButton}
                   onClick={joinRoom}
                   whileHover={{ scale: 1.05 }}
@@ -67,7 +68,7 @@ export default function Home() {
                 >
                   <LogIn size={20} />
                   Join Room
-                </motion.button>
+                </m.button>
               </div>
             </div>
 
@@ -77,7 +78,7 @@ export default function Home() {
               <span className={styles.separatorLine}></span>
             </div>
 
-            <motion.button 
+            <m.button
               className={styles.createButton}
               onClick={createAndJoin}
               whileHover={{ scale: 1.05 }}
@@ -85,10 +86,10 @@ export default function Home() {
             >
               <Plus size={20} />
               Create New Room
-            </motion.button>
-          </motion.div>
+            </m.button>
+          </m.div>
 
-          <motion.div 
+          <m.div
             className={styles.features}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -102,9 +103,9 @@ export default function Home() {
               <Users size={24} />
               <span>Multiple Participants</span>
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       </div>
-    </>
+    </LazyMotion>
   );
 }

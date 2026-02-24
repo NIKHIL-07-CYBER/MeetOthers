@@ -1,6 +1,9 @@
 {
   "name": "meet",
   "version": "0.1.0",
+  "description": "A high-performance, peer-to-peer video conferencing application built with Next.js, Socket.IO, and WebRTC.",
+  "author": "Nikhil",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -27,7 +30,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.21",
     "eslint": "^8",
-    "eslint-config-next": "13.5.11",
+    "eslint-config-next": "15.4.6",
     "postcss": "^8.5.6",
     "postcss-nesting": "^13.0.2",
     "tailwindcss": "^3.4.17"

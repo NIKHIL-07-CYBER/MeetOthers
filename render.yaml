@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: meshmeet
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # TURN server credentials — get free credentials from xirsys.com
+      # Uncomment and fill these in your Render dashboard (Environment > Secret Files)
+      # - key: NEXT_PUBLIC_TURN_URL
+      #   value: turn:YOUR_XIRSYS_HOST:3478
+      # - key: NEXT_PUBLIC_TURN_USER
+      #   value: YOUR_XIRSYS_USERNAME
+      # - key: NEXT_PUBLIC_TURN_CRED
+      #   value: YOUR_XIRSYS_CREDENTIAL
+    headers:
+      - path: /api/socket
+        name: Cache-Control
+        value: no-store

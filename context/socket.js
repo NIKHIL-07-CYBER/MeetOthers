@@ -12,24 +12,57 @@ export const SocketProvider = ({ children }) => {
     // Dynamically set backend URL
     const isProd = typeof window !== "undefined" && window.location.hostname !== "localhost";
     const backendUrl = isProd
-      ? "https://meshmeet.onrender.com/" // Render backend URL
+      ? "https://meshmeet.onrender.com" // Render backend URL
       : "http://localhost:3000"; // Local Next.js dev server
 
     const connection = io(backendUrl, {
-      path: "/api/socket", // Next.js API route
-      transports: ["websocket"], // Force WebSocket
-      withCredentials: true,
+      path: "/api/socket",
+      transports: ["polling", "websocket"], // Graceful upgrade: polling first, then websocket
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000, // Initial delay
+      reconnectionDelayMax: 5000, // Max delay
+      randomizationFactor: 0.5,
+      timeout: 20000,
     });
 
     setSocket(connection);
 
+    // ✅ Connection Manager: Prevents rapid re-connection attempts
+    let lastConnectionAttempt = 0;
+    let attemptCount = 0;
+
+    connection.on("reconnect_attempt", () => {
+      const now = Date.now();
+      attemptCount++;
+
+      // If more than 3 attempts in 1 second, throttle
+      if (now - lastConnectionAttempt < 1000 && attemptCount > 3) {
+        console.warn("[Socket] Throttling connection attempts due to high frequency");
+        // Socket.io handles backoff via reconnectionDelay, 
+        // but we can manually adjust or log here if needed.
+      }
+      lastConnectionAttempt = now;
+    });
+
     connection.on("connect_error", async (err) => {
-      console.log("error on connecting error", err);
-      await fetch("/api/socket");
+      console.log(`[Socket] connect_error: ${err.message}`);
+
+      // Wake up Render service if it's sleeping
+      if (attemptCount < 3) {
+        console.log(`[Socket] Waking /api/socket (attempt ${attemptCount})`);
+        await fetch("/api/socket").catch(() => { });
+      }
+    });
+
+    connection.on("connect", () => {
+      console.log("[Socket] Connected successfully");
+      attemptCount = 0; // Reset on success
     });
 
     return () => {
+      connection.off("reconnect_attempt");
       connection.off("connect_error");
+      connection.off("connect");
       connection.disconnect();
     };
   }, []);

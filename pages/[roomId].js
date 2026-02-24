@@ -9,24 +9,33 @@ import Controls from "@/components/Controls";
 import Navbar from "@/components/Navbar";
 import ChatSidebar from "@/components/ChatSidebar";
 import ParticipantList from "@/components/ParticipantList";
-import { clone, cloneDeep } from "lodash";
+import { cloneDeep } from "lodash";
 import { useRouter } from "next/router";
-import { motion } from "framer-motion";
+import { LazyMotion, domMax, m } from "framer-motion";
 import ParticleBackground from "@/components/ParticleBackground";
+
+const VideoSkeleton = ({ isActive }) => (
+  <div className={`${styles.videoFrame} ${isActive ? 'h-full w-full' : 'h-48 w-full'} flex items-center justify-center bg-gray-900/50 animate-pulse`}>
+    <div className="flex flex-col items-center gap-4">
+      <div className={`${isActive ? 'w-24 h-24' : 'w-12 h-12'} bg-gray-700/50 rounded-full`}></div>
+      <div className={`${isActive ? 'w-48 h-6' : 'w-24 h-3'} bg-gray-700/50 rounded-lg`}></div>
+    </div>
+  </div>
+);
 
 const Room = () => {
   const socket = useSocket();
   const { roomId } = useRouter().query;
   const { peer, myId } = usePeer();
-  const { 
-    stream, 
-    isVideoEnabled, 
-    isAudioEnabled, 
-    isScreenSharing, 
-    toggleVideo, 
-    toggleAudio, 
-    startScreenShare, 
-    stopScreenShare 
+  const {
+    stream,
+    isVideoEnabled,
+    isAudioEnabled,
+    isScreenSharing,
+    toggleVideo: mediaToggleVideo,
+    toggleAudio: mediaToggleAudio,
+    startScreenShare,
+    stopScreenShare
   } = useMediaStream();
   const {
     players,
@@ -42,6 +51,11 @@ const Room = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [meetingDuration, setMeetingDuration] = useState("00:00");
   const [meetingStartTime] = useState(Date.now());
+  const [chatMessages, setChatMessages] = useState([]);
+
+  // ✅ FIX CV-1: peerConnections MUST be declared before any useEffect that references it.
+  // 'const' is not hoisted — placing it below the useEffects caused ReferenceError.
+  const peerConnections = useRef({});
 
   // Meeting timer
   useEffect(() => {
@@ -69,7 +83,7 @@ const Room = () => {
 
   useEffect(() => {
     if (!socket) return;
-    
+
     const handleUserToggleAudio = ({ userId, isAudioEnabled }) => {
       setPlayers((prev) => ({
         ...prev,
@@ -122,57 +136,35 @@ const Room = () => {
     };
   }, [socket, setPlayers]);
 
-  // Handle when a new user connects
+  // Handle when a new user connects (existing user calls the newcomer)
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !peer || !stream) return;
 
     const handleUserConnected = (data) => {
       const newUser = data.userId || data;
-      console.log("user connected:", newUser, data);
+      // ✅ FIX CV-2: Removed setTimeout hack. Call immediately.
+      // The race condition is solved at the source: usePeer no longer emits join-room,
+      // so the only join signal is joinRoom → newUserJoined → user-connected, which
+      // fires AFTER [roomId].js's room join useEffect has already set up all listeners.
+      const call = peer.call(newUser, stream);
+      if (!call) return;
+      peerConnections.current[newUser] = call;
 
-      // Add user to players list immediately
-      setPlayers((prev) => ({
-        ...prev,
-        [newUser]: {
-          url: null,
-          muted: false,
-          playing: false,
-          isHandRaised: false,
-          name: data.userInfo?.name || `User ${newUser.slice(0, 6)}`,
-        },
-      }));
+      call.on("stream", (remoteStream) => {
+        setPlayers((prev) => ({
+          ...prev,
+          [newUser]: {
+            ...(prev[newUser] || {}),
+            url: remoteStream,
+            playing: remoteStream.getVideoTracks().length > 0 &&
+              (remoteStream.getVideoTracks()[0]?.enabled ?? true),
+            muted: false,
+          },
+        }));
+      });
 
-      // Delay peer connection to ensure both sides are ready
-      setTimeout(() => {
-        if (peer && stream) {
-          console.log("Initiating call to:", newUser);
-          const call = peer.call(newUser, stream);
-          
-          // Store the call for track replacement
-          peerConnections.current[newUser] = call;
-
-          call.on("stream", (remoteStream) => {
-            console.log("Received stream from user:", newUser, remoteStream);
-            setPlayers((prev) => ({
-              ...prev,
-              [newUser]: {
-                ...prev[newUser],
-                url: remoteStream,
-                playing: true,
-              },
-            }));
-          });
-
-          call.on("close", () => {
-            console.log("Call closed with:", newUser);
-            delete peerConnections.current[newUser];
-          });
-
-          call.on("error", (error) => {
-            console.error("Call error with:", newUser, error);
-          });
-        }
-      }, 1000);
+      call.on("close", () => { delete peerConnections.current[newUser]; });
+      call.on("error", (error) => console.error("[PeerJS] Call error with:", newUser, error));
     };
 
     socket.on("user-connected", handleUserConnected);
@@ -185,21 +177,17 @@ const Room = () => {
 
     peer.on("call", (call) => {
       const { peer: callerId } = call;
-      console.log("Incoming call from:", callerId);
       call.answer(stream);
-      
-      // Store the call for track replacement
       peerConnections.current[callerId] = call;
 
       call.on("stream", (incomingStream) => {
-        console.log("incoming stream from:", callerId, incomingStream);
         setPlayers((prev) => ({
           ...prev,
           [callerId]: {
-            ...prev[callerId],
+            ...(prev[callerId] || {}),
             url: incomingStream,
+            playing: incomingStream.getVideoTracks().length > 0,
             muted: false,
-            playing: true,
             isHandRaised: false,
           },
         }));
@@ -211,50 +199,56 @@ const Room = () => {
     });
   }, [peer, stream, setPlayers]);
 
-  // Join room on component mount
+  // Room creation/join logic
+  // ✅ FIX CV-2: Triggered by myId (PeerJS open event), NOT peer object.
+  // usePeer no longer emits join-room, so this is now the single authoritative join flow.
   useEffect(() => {
-    if (!socket || !peer || !myId || !roomId) return;
-    
-    console.log("joining room:", roomId, "with peer:", myId);
-    socket.emit("join-room", roomId, myId, {
-      name: `User ${myId.slice(0, 6)}`,
-      isVideoOn: isVideoEnabled,
-      isAudioOn: isAudioEnabled
-    });
+    if (!socket || !myId || !roomId) return;
+    // Try to create room first
+    socket.emit("createRoom", { roomId, userId: myId, userInfo: { name: `User ${myId.slice(0, 6)}` } });
 
-    // Listen for room participants update
-    const handleRoomParticipants = (participants) => {
-      console.log("Received room participants:", participants);
-      participants.forEach(participant => {
-        if (participant.userId !== myId) {
-          setPlayers((prev) => ({
-            ...prev,
-            [participant.userId]: {
-              url: null,
-              muted: false,
-              playing: false,
-              isHandRaised: false,
-              name: participant.userInfo?.name || `User ${participant.userId.slice(0, 6)}`,
-            },
-          }));
-        }
-      });
+    const handleRoomExists = () => {
+      // Room exists, so join it
+      socket.emit("joinRoom", { roomId, userId: myId, userInfo: { name: `User ${myId.slice(0, 6)}` } });
+    };
+    const handleNoSuchRoom = () => alert("Room does not exist.");
+    const handleNewUserJoined = (data) => {
+      const newUser = data.userId;
+      setPlayers((prev) => ({
+        ...prev,
+        [newUser]: {
+          url: null,
+          muted: false,
+          playing: false,
+          isHandRaised: false,
+          name: data.userInfo?.name || `User ${newUser.slice(0, 6)}`,
+        },
+      }));
     };
 
-    socket.on("room-participants", handleRoomParticipants);
-    
+    socket.on("roomExists", handleRoomExists);
+    socket.on("roomCreated", () => { });
+    socket.on("roomJoined", () => { });
+    socket.on("noSuchRoom", handleNoSuchRoom);
+    socket.on("newUserJoined", handleNewUserJoined);
+
     return () => {
-      socket.off("room-participants", handleRoomParticipants);
+      socket.off("roomExists", handleRoomExists);
+      socket.off("roomCreated");
+      socket.off("roomJoined");
+      socket.off("noSuchRoom", handleNoSuchRoom);
+      socket.off("newUserJoined", handleNewUserJoined);
     };
-  }, [socket, peer, myId, roomId, isVideoEnabled, isAudioEnabled, setPlayers]);
+    // ✅ FIX CV-2: `peer` removed from deps — myId only becomes truthy after PeerJS open
+  }, [socket, myId, roomId, setPlayers]);
 
   // Set my own local stream
   useEffect(() => {
     if (!stream || !myId) return;
-    console.log("setting my stream:", myId);
     setPlayers((prev) => ({
       ...prev,
       [myId]: {
+        ...(prev[myId] || {}),
         url: stream,
         muted: true, // mute our own video
         playing: isVideoEnabled,
@@ -263,40 +257,71 @@ const Room = () => {
     }));
   }, [myId, setPlayers, stream, isVideoEnabled]);
 
-  // Store peer connections for track replacement
-  const peerConnections = useRef({});
+  // (peerConnections ref is declared at the top of the component — see line ~42)
 
   // Control handlers
   const handleToggleVideo = async () => {
-    console.log("Toggle video clicked, current state:", isVideoEnabled);
-    
-    // Call the media stream toggle function
-    const newStream = await toggleVideo();
-    
-    // Emit socket event for real-time sync
-    socket?.emit("user-toggled-video", myId, roomId, !isVideoEnabled);
-    
-    if (newStream && !isVideoEnabled) {
-      // Update all peer connections with new video track when enabling video
-      Object.values(peerConnections.current).forEach(async (call) => {
-        if (call && call.peerConnection) {
-          const sender = call.peerConnection.getSenders().find(s => 
-            s.track && s.track.kind === 'video'
-          );
-          const newVideoTrack = newStream.getVideoTracks()[0];
-          if (sender && newVideoTrack) {
+    const newStream = await mediaToggleVideo();
+
+    // ✅ FIX CV-3: Derive truth from the returned stream, NOT the stale isVideoEnabled closure.
+    // isVideoEnabled is the value from the last render, not the new value after the async toggle.
+    const nowEnabled = newStream
+      ? newStream.getVideoTracks().length > 0 &&
+      (newStream.getVideoTracks()[0]?.enabled ?? false)
+      : false;
+
+    setPlayers((prev) => ({
+      ...prev,
+      [myId]: {
+        ...(prev[myId] || {}),
+        url: newStream || stream,
+        playing: nowEnabled,
+        muted: true,
+      },
+    }));
+
+    // ✅ FIX CV-3: Emit derived truth, not stale !isVideoEnabled
+    socket?.emit("user-toggled-video", myId, roomId, nowEnabled);
+
+    // ✅ FIX LM-1: Replace track in all peer connections using the new stream
+    const newVideoTrack = newStream?.getVideoTracks()[0] ?? null;
+    await Promise.all(
+      Object.values(peerConnections.current).map(async (call) => {
+        if (!call?.peerConnection) return;
+        const sender = call.peerConnection
+          .getSenders()
+          .find((s) => s.track?.kind === "video");
+        if (sender) {
+          try {
+            // replaceTrack(null when disabled) = sends black frame, keeps sender alive
             await sender.replaceTrack(newVideoTrack);
+          } catch (e) {
+            console.warn("[replaceTrack] video:", e);
           }
         }
-      });
-    }
+      })
+    );
   };
 
   const handleToggleAudio = () => {
-    toggleAudio();
-    // Emit socket event for real-time sync
-    socket?.emit("user-toggled-audio", myId, roomId, isAudioEnabled);
+    mediaToggleAudio();
+    socket?.emit("user-toggled-audio", myId, roomId, !isAudioEnabled);
   };
+
+  // Chat logic
+  const handleSendMessage = (msg) => {
+    if (!msg.trim()) return;
+    socket.emit("chatMessage", { roomId, message: { userId: myId, text: msg, timestamp: new Date().toISOString() } });
+  };
+
+  useEffect(() => {
+    if (!socket) return;
+    const onChatMessage = (message) => {
+      setChatMessages((prev) => [...prev, message]);
+    };
+    socket.on("chatMessage", onChatMessage);
+    return () => socket.off("chatMessage", onChatMessage);
+  }, [socket]);
 
   const handleToggleHandRaise = () => {
     setIsHandRaised(!isHandRaised);
@@ -304,12 +329,31 @@ const Room = () => {
     socket?.emit("user-hand-raise", myId, roomId, !isHandRaised);
   };
 
-  const handleToggleScreenShare = () => {
-    if (isScreenSharing) {
-      stopScreenShare();
-    } else {
-      startScreenShare();
-    }
+  const handleToggleScreenShare = async () => {
+    // ✅ FIX CV-5: Screen share now replaces the video track in ALL peer connections.
+    const newStream = isScreenSharing
+      ? await stopScreenShare()
+      : await startScreenShare();
+
+    if (!newStream) return;
+
+    const newVideoTrack = newStream.getVideoTracks()[0] ?? null;
+    await Promise.all(
+      Object.values(peerConnections.current).map(async (call) => {
+        if (!call?.peerConnection) return;
+        const sender = call.peerConnection
+          .getSenders()
+          .find((s) => s.track?.kind === "video");
+        if (sender) {
+          try {
+            await sender.replaceTrack(newVideoTrack);
+          } catch (e) {
+            console.warn("[replaceTrack] screen:", e);
+          }
+        }
+      })
+    );
+    socket?.emit("user-screen-share", myId, roomId, !isScreenSharing);
   };
 
   const handleEndCall = () => {
@@ -321,77 +365,82 @@ const Room = () => {
   };
 
   return (
-    <>
+    <LazyMotion features={domMax}>
       <ParticleBackground />
-      
-      <Navbar 
+      <Navbar
         roomId={roomId}
         participantCount={participants.length}
         meetingDuration={meetingDuration}
       />
-
-      {/* Main video area */}
       <div className={`pt-16 pb-32 px-4 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'mr-80' : ''}`}>
         {/* Big active player */}
-        <motion.div 
+        <m.div
           className={styles.activePlayerContainer}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          {playerHighlighted && (
+          {playerHighlighted ? (
             <div className={styles.videoFrame}>
-                <Player
-                  stream={playerHighlighted.url}
-                  muted={playerHighlighted.muted}
-                  playing={playerHighlighted.playing}
-                  isLocal={playerHighlighted.userId === myId}
-                  userId={playerHighlighted.userId}
-                  userName={`User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`}
-                  connectionQuality="good"
-                  isSpeaking={false}
-                  isHandRaised={playerHighlighted.isHandRaised || (playerHighlighted.userId === myId && isHandRaised)}
-                  isActive={true}
-                />
+              <Player
+                stream={playerHighlighted.url}
+                muted={playerHighlighted.muted}
+                playing={playerHighlighted.playing}
+                isLocal={playerHighlighted.userId === myId}
+                userId={playerHighlighted.userId}
+                userName={`User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`}
+                connectionQuality="good"
+                isSpeaking={false}
+                isHandRaised={playerHighlighted.isHandRaised || (playerHighlighted.userId === myId && isHandRaised)}
+                isActive={true}
+              />
             </div>
+          ) : (
+            <VideoSkeleton isActive={true} />
           )}
-        </motion.div>
+        </m.div>
 
         {/* Small inactive players */}
-        <motion.div 
+        <m.div
           className={`${styles.inActivePlayerContainer} ${isChatOpen || isParticipantsOpen ? 'right-96' : ''}`}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          {Object.keys(nonHighlighted).map((playerId, index) => {
-            const { url, muted, playing, name } = nonHighlighted[playerId];
-            return (
-              <motion.div 
-                key={playerId} 
-                className={styles.videoFrame}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + index * 0.1 }}
-                layout
-              >
-                <Player
-                  stream={nonHighlighted[playerId].url}
-                  muted={nonHighlighted[playerId].muted}
-                  playing={nonHighlighted[playerId].playing}
-                  isActive={false}
-                  userName={`User ${playerId.slice(0, 6)}`}
-                  userId={playerId}
-                  connectionQuality="good"
-                  isSpeaking={false}
-                  isHandRaised={nonHighlighted[playerId].isHandRaised || (playerId === myId && isHandRaised)}
-                />
-              </motion.div>
-            );
-          })}
-        </motion.div>
+          {Object.keys(nonHighlighted).length > 0 ? (
+            Object.keys(nonHighlighted).map((playerId, index) => {
+              const { url, muted, playing, name } = nonHighlighted[playerId];
+              return (
+                <m.div
+                  key={playerId}
+                  className={styles.videoFrame}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 + index * 0.1 }}
+                  layout
+                >
+                  <Player
+                    stream={nonHighlighted[playerId].url}
+                    muted={nonHighlighted[playerId].muted}
+                    playing={nonHighlighted[playerId].playing}
+                    isActive={false}
+                    userName={`User ${playerId.slice(0, 6)}`}
+                    userId={playerId}
+                    connectionQuality="good"
+                    isSpeaking={false}
+                    isHandRaised={nonHighlighted[playerId].isHandRaised || (playerId === myId && isHandRaised)}
+                  />
+                </m.div>
+              );
+            })
+          ) : (
+            // Show a few skeletons while waiting for participants
+            Array.from({ length: 3 }).map((_, i) => (
+              <VideoSkeleton key={`skel-${i}`} isActive={false} />
+            ))
+          )}
+        </m.div>
       </div>
-
       <div className={`fixed bottom-0 left-0 z-50 transition-all duration-300 ${isChatOpen || isParticipantsOpen ? 'right-80' : 'right-0'}`}>
         <Controls
           muted={!isAudioEnabled}
@@ -412,13 +461,13 @@ const Room = () => {
           onSettings={handleSettings}
         />
       </div>
-
-      <ChatSidebar 
+      <ChatSidebar
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         roomId={roomId}
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
       />
-
       <ParticipantList
         isOpen={isParticipantsOpen}
         onClose={() => setIsParticipantsOpen(false)}
@@ -426,7 +475,7 @@ const Room = () => {
         currentUserId={myId}
         isHost={true}
       />
-    </>
+    </LazyMotion>
   );
 };
 

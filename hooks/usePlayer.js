@@ -1,77 +1,28 @@
-import { cloneDeep } from "lodash";
-import { useState } from "react";
-import { useSocket } from "@/context/socket";
+import { useState, useMemo } from "react";
 
 const usePlayer = (myId, roomId) => {
-  const socket = useSocket();
   const [players, setPlayers] = useState({});
-  const playersCopy = cloneDeep(players);
 
-  // Pick my own stream separately (highlighted), rest are "nonHighlighted"
-  const playerHighlighted = playersCopy[myId];
-  delete playersCopy[myId];
-  const nonHighlighted = playersCopy;
+  // ✅ FIX LM-2: Replace cloneDeep (runs every render, strips MediaStream) with useMemo.
+  // ✅ FIX LM-2: Attach userId to playerHighlighted so [roomId].js can read playerHighlighted.userId.
+  const { playerHighlighted, nonHighlighted } = useMemo(() => {
+    const nonHighlighted = { ...players };
+    const playerData = nonHighlighted[myId];
+    delete nonHighlighted[myId];
 
-  const toggleAudio = () => {
-    console.log(`user ${myId} toggled the Audio`);
-    setPlayers((prev) => {
-      const current = prev[myId];
-      if (!current) return prev;
+    // Attach userId so consumers can reference it without knowing the key
+    const playerHighlighted = playerData
+      ? { ...playerData, userId: myId }
+      : null;
 
-      const newMuted = !current.muted;
-
-      // 🔑 Toggle actual audio tracks
-      const audioTracks = current.url?.getAudioTracks?.();
-      if (audioTracks && audioTracks.length > 0) {
-        audioTracks.forEach((track) => {
-          track.enabled = !newMuted;
-        });
-      }
-
-      return {
-        ...prev,
-        [myId]: {
-          ...current,
-          muted: newMuted,
-        },
-      };
-    });
-
-    // notify others
-    socket.emit("user-toggled-audio", myId, roomId);
-  };
-
-  const toggleVideo = async (newStream) => {
-    console.log(`user ${myId} toggled the Video`);
-    
-    let newPlaying;
-    setPlayers((prev) => {
-      const current = prev[myId];
-      if (!current) return prev;
-
-      newPlaying = !current.playing;
-
-      return {
-        ...prev,
-        [myId]: {
-          ...current,
-          playing: newPlaying,
-          url: newStream || current.url, // Update with new stream if provided
-        },
-      };
-    });
-    
-    // Return the new playing state for peer connection updates
-    return newPlaying;
-  };
+    return { playerHighlighted, nonHighlighted };
+  }, [players, myId]);
 
   return {
     players,
     setPlayers,
     playerHighlighted,
     nonHighlighted,
-    toggleAudio,
-    toggleVideo,
   };
 };
 
