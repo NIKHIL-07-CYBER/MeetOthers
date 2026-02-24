@@ -9,15 +9,24 @@ import ParticleBackground from "@/components/ParticleBackground";
 export default function Home() {
   const Router = useRouter();
   const [roomId, setRoomId] = useState("");
+  const [userName, setUserName] = useState("");
 
   const createAndJoin = () => {
+    if (!userName.trim()) {
+      alert("Please enter your name first");
+      return;
+    }
     const roomId = uuidv4();
-    Router.push(`/${roomId}`);
+    Router.push(`/${roomId}?name=${encodeURIComponent(userName.trim())}`);
   };
 
   const joinRoom = () => {
+    if (!userName.trim()) {
+      alert("Please enter your name first");
+      return;
+    }
     if (roomId.trim()) {
-      Router.push(`/${roomId}`);
+      Router.push(`/${roomId}?name=${encodeURIComponent(userName.trim())}`);
     } else {
       alert("Please enter a valid room ID");
     }
@@ -52,6 +61,13 @@ export default function Home() {
           >
             <div className={styles.enterRoom}>
               <div className={styles.inputWrapper}>
+                <input
+                  className={styles.roomInput}
+                  placeholder="Your Display Name"
+                  value={userName}
+                  onChange={(e) => setUserName(e?.target?.value)}
+                  suppressHydrationWarning
+                />
                 <input
                   className={styles.roomInput}
                   placeholder="Enter room ID"

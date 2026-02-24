@@ -25,7 +25,8 @@ const VideoSkeleton = ({ isActive }) => (
 
 const Room = () => {
   const socket = useSocket();
-  const { roomId } = useRouter().query;
+  const { query } = useRouter();
+  const { roomId, name: customName } = query;
   const { peer, myId } = usePeer();
   const {
     stream,
@@ -204,11 +205,12 @@ const Room = () => {
 
   // Room creation/join logic
   useEffect(() => {
-    if (!socket || !myId || !roomId) return;
-    socket.emit("createRoom", { roomId, userId: myId, userInfo: { name: `User ${myId.slice(0, 6)}` } });
+    if (!socket || !myId || !roomId || !customName) return;
+    const finalName = decodeURIComponent(customName);
+    socket.emit("createRoom", { roomId, userId: myId, userInfo: { name: finalName } });
 
     const handleRoomExists = () => {
-      socket.emit("joinRoom", { roomId, userId: myId, userInfo: { name: `User ${myId.slice(0, 6)}` } });
+      socket.emit("joinRoom", { roomId, userId: myId, userInfo: { name: finalName } });
     };
     const handleNoSuchRoom = () => alert("Room does not exist.");
     const handleNewUserJoined = (data) => {
@@ -420,7 +422,7 @@ const Room = () => {
                   playing={playerHighlighted.playing}
                   isLocal={playerHighlighted.userId === myId}
                   userId={playerHighlighted.userId}
-                  userName={players[playerHighlighted.userId]?.name || `User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`}
+                  userName={players[playerHighlighted.userId]?.name || (playerHighlighted.userId === myId ? decodeURIComponent(customName) : `User ${playerHighlighted.userId?.slice(0, 6) || 'Unknown'}`)}
                   connectionQuality="good"
                   isSpeaking={false}
                   isHandRaised={playerHighlighted.isHandRaised || (playerHighlighted.userId === myId && isHandRaised)}
